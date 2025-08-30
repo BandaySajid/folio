@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sajid Banday</title>
+  <script src="/static/js/tailwind.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Exo+2:wght@600;700&family=Poppins:wght@300;400;500;600&display=swap"
+    rel="stylesheet">
+  <style>
+    body {
+      background-color: #000000;
+      min-height: 100vh;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    ::selection {
+      background: #ffffff;
+      color: #000000;
+    }
+
+    .font-exo {
+      font-family: 'Exo 2', sans-serif;
+    }
+
+    .main-bg {
+      background-color: #000;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
+      background-size: 40px 40px;
+    }
+
+    .card-bg {
+      background: linear-gradient(145deg, #111111 0%, #0a0a0a 100%);
+      border: 1px solid #222;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .card-glow {
+      box-shadow: 0 0 80px 0px rgba(255, 255, 255, 0.03);
+    }
+
+    .modern-link {
+      color: #a0a0a0;
+      transition: color 0.2s ease;
+    }
+
+    .modern-link:hover {
+      color: #ffffff;
+    }
+
+    .tech-tag {
+      display: inline-block;
+      background-color: rgba(255, 255, 255, 0.05);
+      color: #9ca3af;
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      margin-right: 6px;
+      margin-bottom: 6px;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .tech-tag-accent {
+      color: #60a5fa;
+      background-color: rgba(59, 130, 246, 0.1);
+    }
+  </style>
+</head>
+
+<body class="text-gray-300 antialiased main-bg">
+
+  <main class="w-full min-h-screen flex items-center justify-center sm:p-4">
+    <div
+      class="mx-auto w-full max-w-lg px-6 sm:px-8 py-10 card-bg border-none sm:rounded-2xl flex flex-col items-center relative overflow-hidden card-glow">
+
+      <img src="/static/img/profile.jpg" alt="Sajid Banday"
+        onerror="this.onerror=null;this.src='https://placehold.co/144x144/111111/e5e7eb?text=SB';"
+        class="w-36 h-36 rounded-full border-2 border-gray-800 shadow-lg mb-6 z-10 bg-black object-cover">
+
+      <h1 class="text-4xl font-bold text-gray-100 mb-1 tracking-tight font-exo z-10">Sajid Banday</h1>
+      <p class="text-gray-400 font-medium mb-6 tracking-wide z-10">Builder</p>
+
+      <p class="text-gray-400 text-center mb-8 text-base leading-relaxed z-10 max-w-sm">
+        I enjoy building systems and solving technical challenges with practical, efficient solutions.
+      </p>
+
+      <div class="w-full z-10 text-left">
+        <h2 class="text-xl font-bold text-white mb-4 font-exo">Projects</h2>
+        <div class="space-y-4">
+          <div
+            class="bg-black/20 rounded-lg p-4 border border-gray-800/80 transition-all duration-300 hover:border-gray-700 hover:bg-black/30">
+            <h3 class="text-base font-bold text-gray-200 mb-1 font-exo">Amplizard Gateway</h3>
+            <p class="text-gray-400 text-sm mb-3">A rate-limiting gateway using Cloudflare's edge to intercept and cache
+              rate-limited requests, reducing origin server load and infrastructure costs.</p>
+            <div>
+              <span class="tech-tag">TypeScript</span><span class="tech-tag">Node.js</span><span
+                class="tech-tag">Redis</span><span class="tech-tag tech-tag-accent">Cloudflare</span>
+            </div>
+            <a target="_blank" href="https://github.com/BandaySajid/gateway"
+              class="modern-link text-sm font-semibold mt-2 inline-block">View Repository &rarr;</a>
+          </div>
+          <div
+            class="bg-black/20 rounded-lg p-4 border border-gray-800/80 transition-all duration-300 hover:border-gray-700 hover:bg-black/30">
+            <h3 class="text-base font-bold text-gray-200 mb-1 font-exo">Amplizard Interface</h3>
+            <p class="text-gray-400 text-sm mb-3">A robust consumer backend with an intuitive web interface for managing
+              the Amplizard gateway.</p>
+            <div>
+              <span class="tech-tag">TypeScript</span><span class="tech-tag tech-tag-accent">Cloudflare
+                Workers</span><span class="tech-tag tech-tag-accent">Cloudflare KV</span><span
+                class="tech-tag tech-tag-accent">Cloudflare D1</span>
+            </div>
+            <a target="_blank" href="https://github.com/BandaySajid/gateway-app"
+              class="modern-link text-sm font-semibold mt-2 inline-block">View Repository &rarr;</a>
+          </div>
+          <div
+            class="bg-black/20 rounded-lg p-4 border border-gray-800/80 transition-all duration-300 hover:border-gray-700 hover:bg-black/30">
+            <h3 class="text-base font-bold text-gray-200 mb-1 font-exo">Tweet Agent</h3>
+            <p class="text-gray-400 text-sm mb-3">A Node.js Twitter client that interacts with the Twitter browser API,
+              designed for building AI-powered agents.</p>
+            <div>
+              <span class="tech-tag">TypeScript</span>
+            </div>
+            <a target="_blank" href="https://github.com/BandaySajid/tweet-agent"
+              class="modern-link text-sm font-semibold mt-2 inline-block">View Repository &rarr;</a>
+          </div>
+          <div
+            class="bg-black/20 rounded-lg p-4 border border-gray-800/80 transition-all duration-300 hover:border-gray-700 hover:bg-black/30">
+            <h3 class="text-base font-bold text-gray-200 mb-1 font-exo">Epick Backend</h3>
+            <p class="text-gray-400 text-sm ">Backend for a local ride-hailing app in Kashmir with efficient driver
+              tracking, request timeouts, and WhatsApp integration, optimized for low latency.
+            </p>
+            <p class="italic text-gray-500 my-2 text-xs">Private property.</p>
+            <div>
+              <span class="tech-tag">JavaScript</span><span class="tech-tag tech-tag-accent">Cloudflare
+                Workers</span><span class="tech-tag tech-tag-accent">Durable Objects</span><span
+                class="tech-tag">Supabase</span>
+            </div>
+            <a target="_blank" href="https://vimeo.com/1101758107/"
+              class="modern-link text-sm font-semibold mt-2 inline-block">Watch Demo &rarr;</a>
+          </div>
+          <div
+            class="bg-black/20 rounded-lg p-4 border border-gray-800/80 transition-all duration-300 hover:border-gray-700 hover:bg-black/30">
+            <h3 class="text-base font-bold text-gray-200 mb-1 font-exo">Epick Driver App</h3>
+            <p class="text-gray-400 text-sm">Android app for drivers to accept or decline ride requests from the
+              Epick service.
+            </p>
+            <p class="italic text-gray-500 my-2 text-xs">Private property.</p>
+            <div>
+              <span class="tech-tag">TypeScript</span><span class="tech-tag tech-tag-accent">React Native</span><span
+                class="tech-tag">Supabase</span><span class="tech-tag">Mapbox</span>
+            </div>
+            <a target="_blank" href="https://vimeo.com/1101758107/"
+              class="modern-link text-sm font-semibold mt-2 inline-block">Watch Demo &rarr;</a>
+          </div>
+          <div
+            class="bg-black/20 rounded-lg p-4 border border-gray-800/80 transition-all duration-300 hover:border-gray-700 hover:bg-black/30">
+            <h3 class="text-base font-bold text-gray-200 mb-1 font-exo">chatgpt-node</h3>
+            <p class="text-gray-400 text-sm ">A Node.js library for interacting with the ChatGPT web API.</p>
+            <p class="italic text-gray-500 my-2 text-xs">Archived due to regulatory changes.</p>
+            <div>
+              <span class="tech-tag">JavaScript</span><span class="tech-tag">Node.js</span><span class="tech-tag">Curl
+                Impersonate</span>
+            </div>
+            <a target="_blank" href="https://github.com/BandaySajid/chatgpt-node"
+              class="modern-link text-sm font-semibold mt-2 inline-block">View Repository &rarr;</a>
+          </div>
+          <div
+            class="bg-black/20 rounded-lg p-4 border border-gray-800/80 transition-all duration-300 hover:border-gray-700 hover:bg-black/30">
+            <h3 class="text-base font-bold text-gray-200 mb-1 font-exo">mscache</h3>
+            <p class="text-gray-400 text-sm">An experimental in-memory Key-Value store written in TypeScript with
+              Redis-like commands.</p>
+            <p class="italic text-gray-500 my-2 text-xs">Not for production use.</p>
+            <div>
+              <span class="tech-tag">TypeScript</span>
+            </div>
+            <a target="_blank" href="https://github.com/BandaySajid/mscache"
+              class="modern-link text-sm font-semibold mt-2 inline-block">View Repository &rarr;</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="w-full z-10 mt-8 text-left">
+        <h2 class="text-xl font-bold text-white mb-4 font-exo">Professional Experience</h2>
+        <div class="space-y-4">
+          <div
+            class="bg-black/20 rounded-lg p-4 border border-gray-800/80 transition-all duration-300 hover:border-gray-700 hover:bg-black/30">
+            <div class="flex justify-between items-baseline">
+              <h3 class="text-base font-bold text-gray-200 mb-1 font-exo">Backend Developer</h3>
+              <p class="text-xs text-gray-500">2023</p>
+            </div>
+            <p class="text-sm text-gray-400 font-semibold mb-2">FastBeetle, Srinagar</p>
+            <p class="text-gray-400 text-sm">Contributed to API integration, code migration, database query
+              optimization, and front-end tasks for a major logistics platform.</p>
+          </div>
+        </div>
+      </div>
+
+      <footer class="w-full mt-12 text-center text-xs text-gray-600 z-10 font-sans">
+        &copy; 2025 Sajid Banday
+      </footer>
+
+    </div>
+  </main>
+
+  <nav class="fixed bottom-0 left-0 w-full z-50 flex justify-center p-4">
+    <div
+      class="flex items-center space-x-4 bg-black/50 backdrop-blur-sm border border-gray-800/80 rounded-full px-5 py-2 gap-2">
+      <a href="mailto:ibandaysajid@gmail.com" class="text-gray-400 hover:text-white transition-colors duration-200"
+        aria-label="Email">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+          </path>
+        </svg>
+      </a>
+      <a href="https://github.com/bandaysajid" target="_blank"
+        class="text-gray-400 hover:text-white transition-colors duration-200" aria-label="GitHub">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path fill-rule="evenodd"
+            d="M12 2C6.477 2 2 6.484 2 12.017c0 4.418 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.164-1.11-1.478-1.11-1.478-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.687-.103-.253-.446-1.272.098-2.65 0 0 .84-.268 2.75 1.022A9.607 9.607 0 0112 6.68a9.607 9.607 0 012.504.337c1.91-.29 2.75-1.022 2.75-1.022.546 1.379.202 2.398.099 2.65.64.699 1.029 1.594 1.029 2.687 0 3.84-2.334 4.69-4.56 4.948.358.309.672.923.672 1.851 0 1.338-.012 2.417-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+            clip-rule="evenodd"></path>
+        </svg>
+      </a>
+      <a href="https://x.com/bandayysajid" target="_blank"
+        class="text-gray-400 hover:text-white transition-colors duration-200" aria-label="X (Twitter)">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path
+            d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+      </a>
+    </div>
+  </nav>
+
+</body>
+
+</html>
