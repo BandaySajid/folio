@@ -1,104 +1,120 @@
 <!DOCTYPE html>
 <html lang="en" class="antialiased selection:bg-white selection:text-black">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sajid Banday | Builder</title>
-    <script src="/static/js/tailwind.js"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              mono: ['JetBrains Mono', 'monospace'],
-            },
-            colors: {
-              background: '#000000',
-              surface: '#0A0A0B',
-              surfaceHover: '#121214',
-              border: '#1E1E20',
-              primary: '#EDEDED',
-              secondary: '#A1A1AA',
-              accent: '#EDEDED'
-            },
-            animation: {
-              'fade-up': 'fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            },
-            keyframes: {
-              fadeUp: {
-                '0%': { opacity: 0, transform: 'translateY(16px)' },
-                '100%': { opacity: 1, transform: 'translateY(0)' },
-              }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sajid Banday | Builder</title>
+  <script src="/static/js/tailwind.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            background: '#000000',
+            surface: '#0A0A0B',
+            surfaceHover: '#121214',
+            border: '#1E1E20',
+            primary: '#EDEDED',
+            secondary: '#A1A1AA',
+            accent: '#EDEDED'
+          },
+          animation: {
+            'fade-up': 'fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          },
+          keyframes: {
+            fadeUp: {
+              '0%': { opacity: 0, transform: 'translateY(16px)' },
+              '100%': { opacity: 1, transform: 'translateY(0)' },
             }
           }
         }
       }
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <style>
-      body {
-        background-color: #000000;
-        color: #EDEDED;
-      }
-      
-      .bg-dot-pattern {
-        background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-        background-size: 24px 24px;
-      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    body {
+      background-color: #000000;
+      color: #EDEDED;
+    }
 
-      .mask-vignette {
-        mask-image: radial-gradient(circle at top, black 20%, transparent 100%);
-        -webkit-mask-image: radial-gradient(circle at top, black 20%, transparent 100%);
-      }
+    .bg-dot-pattern {
+      background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
 
-      .project-card {
-        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
-                    background-color 0.2s ease,
-                    border-color 0.2s ease;
-      }
+    .mask-vignette {
+      mask-image: radial-gradient(circle at top, black 20%, transparent 100%);
+      -webkit-mask-image: radial-gradient(circle at top, black 20%, transparent 100%);
+    }
 
-      .project-card:hover {
-        transform: translateY(-2px);
-        background-color: #121214;
-        border-color: #333335;
-      }
+    .project-card {
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+        background-color 0.2s ease,
+        border-color 0.2s ease;
+    }
 
-      /* Staggered animations */
-      .delay-100 { animation-delay: 100ms; opacity: 0; }
-      .delay-200 { animation-delay: 200ms; opacity: 0; }
-      .delay-300 { animation-delay: 300ms; opacity: 0; }
-      
-      /* Tech tag styling */
-      .tech-tag {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.7rem;
-        padding: 2px 8px;
-        border-radius: 99px;
-        background-color: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        color: #A1A1AA;
-        transition: all 0.2s;
-      }
-      
-      .project-card:hover .tech-tag {
-        color: #EDEDED;
-        border-color: rgba(255,255,255,0.15);
-      }
-      
-      .nav-link {
-        color: #A1A1AA;
-        transition: color 0.2s;
-        text-decoration: none;
-      }
-      .nav-link:hover {
-        color: #EDEDED;
-      }
-    </style>
+    .project-card:hover {
+      transform: translateY(-2px);
+      background-color: #121214;
+      border-color: #333335;
+    }
+
+    /* Staggered animations */
+    .delay-100 {
+      animation-delay: 100ms;
+      opacity: 0;
+    }
+
+    .delay-200 {
+      animation-delay: 200ms;
+      opacity: 0;
+    }
+
+    .delay-300 {
+      animation-delay: 300ms;
+      opacity: 0;
+    }
+
+    /* Tech tag styling */
+    .tech-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background-color: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      color: #A1A1AA;
+      transition: all 0.2s;
+    }
+
+    .project-card:hover .tech-tag {
+      color: #EDEDED;
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .nav-link {
+      color: #A1A1AA;
+      transition: color 0.2s;
+      text-decoration: none;
+    }
+
+    .nav-link:hover {
+      color: #EDEDED;
+    }
+  </style>
 </head>
+
 <body class="min-h-screen flex flex-col items-center relative overflow-x-hidden font-sans pb-24">
 
   <!-- Subtle ambient background effect -->
@@ -107,12 +123,14 @@
   </div>
 
   <div class="w-full max-w-[640px] px-6 sm:px-8 pt-20 sm:pt-32 relative z-10 w-full flex-grow">
-    
+
     <!-- Header / Intro -->
     <header class="mb-16 animate-fade-up delay-100">
       <div class="flex items-center gap-6 mb-8">
         <div class="relative group">
-          <div class="absolute -inset-1 bg-white/10 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div
+            class="absolute -inset-1 bg-white/10 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+          </div>
           <img src="/static/img/profile.jpg" alt="Sajid Banday"
             onerror="this.onerror=null;this.src='https://placehold.co/120x120/111111/e5e7eb?text=SB';"
             class="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full border border-border object-cover bg-surface grayscale group-hover:grayscale-0 transition-all duration-500">
@@ -122,79 +140,105 @@
           <div class="flex items-center gap-2.5">
             <span class="text-sm font-mono text-secondary">Builder</span>
             <span class="flex h-2 w-2">
-              <span class="animate-pulse-slow absolute inline-flex h-2 w-2 rounded-full bg-emerald-400 opacity-75"></span>
+              <span
+                class="animate-pulse-slow absolute inline-flex h-2 w-2 rounded-full bg-emerald-400 opacity-75"></span>
               <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
           </div>
         </div>
       </div>
-      
+
       <p class="text-secondary text-[15px] sm:text-base leading-relaxed max-w-[480px]">
-        I enjoy building systems and solving technical challenges with practical, efficient solutions. Focused on backend services, reliable infrastructure, and clean interfaces.
+        I enjoy building systems and solving technical challenges with practical, efficient solutions. Focused on
+        backend services, reliable infrastructure, and clean interfaces.
       </p>
     </header>
 
     <!-- Projects List -->
     <section class="mb-16 animate-fade-up delay-200">
-      <h2 class="text-xs font-mono text-secondary uppercase tracking-widest mb-6 pb-2 border-b border-border/50">Selected Projects</h2>
-      
+      <h2 class="text-xs font-mono text-secondary uppercase tracking-widest mb-6 pb-2 border-b border-border/50">
+        Selected Projects</h2>
+
       <div class="flex flex-col gap-4">
-        
+
         <!-- Project Item -->
-        <a href="https://github.com/BandaySajid/gateway" target="_blank" class="project-card block bg-surface border border-border rounded-xl p-5 hover:cursor-pointer no-underline group relative overflow-hidden">
-          <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <a href="https://github.com/BandaySajid/gateway" target="_blank"
+          class="project-card block bg-surface border border-border rounded-xl p-5 hover:cursor-pointer no-underline group relative overflow-hidden">
+          <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
+          </div>
           <div class="flex justify-between items-start mb-2">
             <h3 class="font-medium text-primary text-base transition-colors">Amplizard Gateway</h3>
-            <span class="opacity-0 group-hover:opacity-100 transition-opacity text-secondary text-sm transform translate-x-1 group-hover:translate-x-0 duration-300">↗</span>
+            <span
+              class="opacity-0 group-hover:opacity-100 transition-opacity text-secondary text-sm transform translate-x-1 group-hover:translate-x-0 duration-300">↗</span>
           </div>
-          <p class="text-sm text-secondary mb-4 leading-relaxed line-clamp-2">A rate-limiting gateway using Cloudflare's edge to intercept and cache rate-limited requests, reducing origin server load and infrastructure costs.</p>
+          <p class="text-sm text-secondary mb-4 leading-relaxed line-clamp-2">A rate-limiting gateway using Cloudflare's
+            edge to intercept and cache rate-limited requests, reducing origin server load and infrastructure costs.</p>
           <div class="flex flex-wrap gap-2">
             <span class="tech-tag">TypeScript</span>
             <span class="tech-tag">Node.js</span>
             <span class="tech-tag">Redis</span>
-            <span class="tech-tag text-blue-400 border-blue-400/20 bg-blue-400/5 group-hover:border-blue-400/40">Cloudflare</span>
+            <span
+              class="tech-tag text-blue-400 border-blue-400/20 bg-blue-400/5 group-hover:border-blue-400/40">Cloudflare</span>
           </div>
         </a>
 
         <!-- Project Item -->
-        <a href="https://github.com/BandaySajid/gateway-app" target="_blank" class="project-card block bg-surface border border-border rounded-xl p-5 hover:cursor-pointer no-underline group relative overflow-hidden">
-          <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <a href="https://github.com/BandaySajid/gateway-app" target="_blank"
+          class="project-card block bg-surface border border-border rounded-xl p-5 hover:cursor-pointer no-underline group relative overflow-hidden">
+          <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
+          </div>
           <div class="flex justify-between items-start mb-2">
             <h3 class="font-medium text-primary text-base transition-colors">Amplizard Interface</h3>
-            <span class="opacity-0 group-hover:opacity-100 transition-opacity text-secondary text-sm transform translate-x-1 group-hover:translate-x-0 duration-300">↗</span>
+            <span
+              class="opacity-0 group-hover:opacity-100 transition-opacity text-secondary text-sm transform translate-x-1 group-hover:translate-x-0 duration-300">↗</span>
           </div>
-          <p class="text-sm text-secondary mb-4 leading-relaxed line-clamp-2">A robust consumer backend with an intuitive web interface for managing the Amplizard gateway seamlessly.</p>
+          <p class="text-sm text-secondary mb-4 leading-relaxed line-clamp-2">A robust consumer backend with an
+            intuitive web interface for managing the Amplizard gateway seamlessly.</p>
           <div class="flex flex-wrap gap-2">
             <span class="tech-tag">TypeScript</span>
-            <span class="tech-tag text-orange-400 border-orange-400/20 bg-orange-400/5 group-hover:border-orange-400/40">Cloudflare Workers</span>
-            <span class="tech-tag text-purple-400 border-purple-400/20 bg-purple-400/5 group-hover:border-purple-400/40">D1 & KV</span>
+            <span
+              class="tech-tag text-orange-400 border-orange-400/20 bg-orange-400/5 group-hover:border-orange-400/40">Cloudflare
+              Workers</span>
+            <span
+              class="tech-tag text-purple-400 border-purple-400/20 bg-purple-400/5 group-hover:border-purple-400/40">D1
+              & KV</span>
           </div>
         </a>
 
         <!-- Project Item -->
-        <a href="https://github.com/BandaySajid/tweet-agent" target="_blank" class="project-card block bg-surface border border-border rounded-xl p-5 hover:cursor-pointer no-underline group relative overflow-hidden">
-          <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <a href="https://github.com/BandaySajid/tweet-agent" target="_blank"
+          class="project-card block bg-surface border border-border rounded-xl p-5 hover:cursor-pointer no-underline group relative overflow-hidden">
+          <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
+          </div>
           <div class="flex justify-between items-start mb-2">
             <h3 class="font-medium text-primary text-base transition-colors">Tweet Agent</h3>
-            <span class="opacity-0 group-hover:opacity-100 transition-opacity text-secondary text-sm transform translate-x-1 group-hover:translate-x-0 duration-300">↗</span>
+            <span
+              class="opacity-0 group-hover:opacity-100 transition-opacity text-secondary text-sm transform translate-x-1 group-hover:translate-x-0 duration-300">↗</span>
           </div>
-          <p class="text-sm text-secondary mb-4 leading-relaxed line-clamp-2">A Node.js Twitter client that interacts with the Twitter browser API, designed for building AI-powered autonomous agents.</p>
+          <p class="text-sm text-secondary mb-4 leading-relaxed line-clamp-2">A Node.js Twitter client that interacts
+            with the Twitter browser API, designed for building AI-powered autonomous agents.</p>
           <div class="flex flex-wrap gap-2">
             <span class="tech-tag">TypeScript</span>
           </div>
         </a>
-        
+
         <!-- Project Item -->
-        <a href="https://vimeo.com/1101758107/" target="_blank" class="project-card block bg-surface border border-border rounded-xl p-5 hover:cursor-pointer no-underline group relative overflow-hidden">
-          <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <a href="https://vimeo.com/1101758107/" target="_blank"
+          class="project-card block bg-surface border border-border rounded-xl p-5 hover:cursor-pointer no-underline group relative overflow-hidden">
+          <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
+          </div>
           <div class="flex justify-between items-start mb-1">
             <div class="flex items-center gap-2">
               <h3 class="font-medium text-primary text-base transition-colors">Epick Backend & Driver App</h3>
-              <span class="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded-sm bg-neutral-800 text-neutral-400 border border-neutral-700">Private</span>
+              <span
+                class="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded-sm bg-neutral-800 text-neutral-400 border border-neutral-700">Private</span>
             </div>
-            <span class="opacity-0 group-hover:opacity-100 transition-opacity text-secondary text-sm transform translate-x-1 group-hover:translate-x-0 duration-300">↗</span>
+            <span
+              class="opacity-0 group-hover:opacity-100 transition-opacity text-secondary text-sm transform translate-x-1 group-hover:translate-x-0 duration-300">↗</span>
           </div>
-          <p class="text-sm text-secondary mb-4 leading-relaxed line-clamp-2 mt-1">Full stack infrastructure for a local ride-hailing app in Kashmir featuring low latency tracking, WhatsApp integration, and specialized driver tools.</p>
+          <p class="text-sm text-secondary mb-4 leading-relaxed line-clamp-2 mt-1">Full stack infrastructure for a local
+            ride-hailing app in Kashmir featuring low latency tracking, WhatsApp integration, and specialized driver
+            tools.</p>
           <div class="flex flex-wrap gap-2">
             <span class="tech-tag">TypeScript & JS</span>
             <span class="tech-tag">Cloudflare Workers/DO</span>
@@ -205,15 +249,26 @@
 
         <!-- Simple Project Rows -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-          <a href="https://github.com/BandaySajid/chatgpt-node" target="_blank" class="project-card block bg-surface border border-border rounded-xl p-4 group relative overflow-hidden">
-            <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <h3 class="font-medium text-primary text-[15px] mb-1 group-hover:underline decoration-white/30 underline-offset-4">chatgpt-node</h3>
-            <p class="text-[13px] text-secondary">Node.js library for interacting with ChatGPT API using Curl Impersonate.</p>
+          <a href="https://github.com/BandaySajid/chatgpt-node" target="_blank"
+            class="project-card block bg-surface border border-border rounded-xl p-4 group relative overflow-hidden">
+            <div
+              class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
+            </div>
+            <h3
+              class="font-medium text-primary text-[15px] mb-1 group-hover:underline decoration-white/30 underline-offset-4">
+              chatgpt-node</h3>
+            <p class="text-[13px] text-secondary">Node.js library for interacting with ChatGPT API using Curl
+              Impersonate.</p>
           </a>
-          <a href="https://github.com/BandaySajid/mscache" target="_blank" class="project-card block bg-surface border border-border rounded-xl p-4 group relative overflow-hidden">
-            <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity"></div>
-             <h3 class="font-medium text-primary text-[15px] mb-1 group-hover:underline decoration-white/30 underline-offset-4">mscache</h3>
-             <p class="text-[13px] text-secondary">Experimental in-memory KV store in TS with Redis-like commands.</p>
+          <a href="https://github.com/BandaySajid/mscache" target="_blank"
+            class="project-card block bg-surface border border-border rounded-xl p-4 group relative overflow-hidden">
+            <div
+              class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
+            </div>
+            <h3
+              class="font-medium text-primary text-[15px] mb-1 group-hover:underline decoration-white/30 underline-offset-4">
+              mscache</h3>
+            <p class="text-[13px] text-secondary">Experimental in-memory KV store in TS with Redis-like commands.</p>
           </a>
         </div>
 
@@ -222,40 +277,52 @@
 
     <!-- Experience Section -->
     <section class="mb-16 animate-fade-up delay-300">
-      <h2 class="text-xs font-mono text-secondary uppercase tracking-widest mb-6 pb-2 border-b border-border/50">Experience</h2>
-      
+      <h2 class="text-xs font-mono text-secondary uppercase tracking-widest mb-6 pb-2 border-b border-border/50">
+        Experience</h2>
+
       <div class="project-card bg-surface border border-border rounded-xl p-5 relative overflow-hidden">
-        <div class="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-transparent via-white/10 to-transparent"></div>
+        <div
+          class="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-transparent via-white/10 to-transparent">
+        </div>
         <div class="flex justify-between items-baseline mb-1">
           <h3 class="font-medium text-primary text-base">Backend Developer at FastBeetle</h3>
           <span class="text-xs font-mono text-secondary">2023</span>
         </div>
-        <p class="text-sm text-secondary leading-relaxed">Srinagar — Contributed to API integration, code migration, database query optimization, and frontend tasks for a major logistics platform.</p>
+        <p class="text-sm text-secondary leading-relaxed">Srinagar — Contributed to API integration, code migration,
+          database query optimization, and frontend tasks for a major logistics platform.</p>
       </div>
     </section>
-    
+
   </div>
 
   <!-- Minimal Footer Nav -->
-  <nav class="fixed bottom-0 left-0 w-full z-50 flex justify-center pb-6 pt-4 animate-fade-up delay-300 pointer-events-none">
-    <div class="pointer-events-auto flex items-center space-x-6 bg-[#0E0E10]/90 backdrop-blur-md border border-border rounded-full px-6 py-3 shadow-2xl">
+  <nav
+    class="fixed bottom-0 left-0 w-full z-50 flex justify-center pb-6 pt-4 animate-fade-up delay-300 pointer-events-none">
+    <div
+      class="pointer-events-auto flex items-center space-x-6 bg-[#0E0E10]/90 backdrop-blur-md border border-border rounded-full px-6 py-3 shadow-2xl">
       <a href="mailto:ibandaysajid@gmail.com" class="nav-link" aria-label="Email">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+          </path>
         </svg>
       </a>
       <a href="https://github.com/bandaysajid" target="_blank" class="nav-link" aria-label="GitHub">
         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-          <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.418 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.164-1.11-1.478-1.11-1.478-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.687-.103-.253-.446-1.272.098-2.65 0 0 .84-.268 2.75 1.022A9.607 9.607 0 0112 6.68a9.607 9.607 0 012.504.337c1.91-.29 2.75-1.022 2.75-1.022.546 1.379.202 2.398.099 2.65.64.699 1.029 1.594 1.029 2.687 0 3.84-2.334 4.69-4.56 4.948.358.309.672.923.672 1.851 0 1.338-.012 2.417-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path>
+          <path fill-rule="evenodd"
+            d="M12 2C6.477 2 2 6.484 2 12.017c0 4.418 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.164-1.11-1.478-1.11-1.478-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.687-.103-.253-.446-1.272.098-2.65 0 0 .84-.268 2.75 1.022A9.607 9.607 0 0112 6.68a9.607 9.607 0 012.504.337c1.91-.29 2.75-1.022 2.75-1.022.546 1.379.202 2.398.099 2.65.64.699 1.029 1.594 1.029 2.687 0 3.84-2.334 4.69-4.56 4.948.358.309.672.923.672 1.851 0 1.338-.012 2.417-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+            clip-rule="evenodd"></path>
         </svg>
       </a>
-      <a href="https://x.com/bandayysajid" target="_blank" class="nav-link" aria-label="X (Twitter)">
+      <a href="https://x.com/sajidbandayy" target="_blank" class="nav-link" aria-label="X (Twitter)">
         <svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          <path
+            d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
         </svg>
       </a>
     </div>
   </nav>
 
 </body>
+
 </html>
