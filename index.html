@@ -1,327 +1,1198 @@
 <!DOCTYPE html>
-<html lang="en" class="antialiased selection:bg-white selection:text-black">
+<html lang="en" class="antialiased">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sajid Banday | Builder</title>
-  <script src="/static/js/tailwind.js"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          },
-          colors: {
-            background: '#000000',
-            surface: '#0A0A0B',
-            surfaceHover: '#121214',
-            border: '#1E1E20',
-            primary: '#EDEDED',
-            secondary: '#A1A1AA',
-            accent: '#EDEDED'
-          },
-          animation: {
-            'fade-up': 'fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-          },
-          keyframes: {
-            fadeUp: {
-              '0%': { opacity: 0, transform: 'translateY(16px)' },
-              '100%': { opacity: 1, transform: 'translateY(0)' },
-            }
-          }
-        }
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+    :root {
+      --bg: #000000;
+      --surface: #09090b;
+      --surface-hover: #0f0f11;
+      --border: #1a1a1e;
+      --border-hover: #2a2a30;
+      --primary: #ededed;
+      --secondary: #888896;
+      --tertiary: #555561;
+      --accent: #33ff99;
+      --accent-dim: #1a3d2e;
+      --accent-glow: rgba(51, 255, 153, 0.15);
+      --font: 'Space Mono', monospace;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--primary);
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.7;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Animations */
+
+    @keyframes fadeUp {
+      0% {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateY(0);
       }
     }
-  </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
-    rel="stylesheet">
-  <style>
-    body {
-      background-color: #000000;
-      color: #EDEDED;
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
     }
 
-    .bg-dot-pattern {
-      background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-      background-size: 24px 24px;
+    @keyframes shimmer {
+      0% {
+        background-position: -200px 0;
+      }
+
+      100% {
+        background-position: calc(200px + 100%) 0;
+      }
     }
 
-    .mask-vignette {
-      mask-image: radial-gradient(circle at top, black 20%, transparent 100%);
-      -webkit-mask-image: radial-gradient(circle at top, black 20%, transparent 100%);
+    .anim-fade-up {
+      animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      opacity: 0;
+    }
+
+    .anim-delay-1 {
+      animation-delay: 80ms;
+    }
+
+    .anim-delay-2 {
+      animation-delay: 160ms;
+    }
+
+    .anim-delay-3 {
+      animation-delay: 240ms;
+    }
+
+    .anim-delay-4 {
+      animation-delay: 320ms;
+    }
+
+    .anim-delay-5 {
+      animation-delay: 400ms;
+    }
+
+    .cursor-blink {
+      animation: blink 1s step-end infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .anim-fade-up {
+        animation: none;
+        opacity: 1;
+      }
+
+      .cursor-blink {
+        animation: none;
+      }
+
+      .skeleton {
+        animation: none;
+        background: var(--surface-hover) !important;
+      }
+    }
+
+    /* Layout */
+
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 24px;
+      padding-bottom: 100px;
+    }
+
+    /* Background grid */
+
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.15;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(circle at 50% 0%, black 30%, transparent 70%);
+      -webkit-mask-image: radial-gradient(circle at 50% 0%, black 30%, transparent 70%);
+    }
+
+    /* Sections */
+
+    .section {
+      position: relative;
+      z-index: 1;
+    }
+
+    .section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--tertiary);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Project cards */
+
+    .project-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2px;
     }
 
     .project-card {
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-        background-color 0.2s ease,
-        border-color 0.2s ease;
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px 22px;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
     }
 
-    .project-card:hover {
-      transform: translateY(-2px);
-      background-color: #121214;
-      border-color: #333335;
+    .project-card:first-child {
+      border-radius: 8px 8px 0 0;
     }
 
-    /* Staggered animations */
-    .delay-100 {
-      animation-delay: 100ms;
+    .project-card:last-child {
+      border-radius: 0 0 8px 8px;
+    }
+
+    .project-card:only-child {
+      border-radius: 8px;
+    }
+
+    .project-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--accent);
       opacity: 0;
+      transition: opacity 0.2s ease;
     }
 
-    .delay-200 {
-      animation-delay: 200ms;
-      opacity: 0;
+    .project-card:hover,
+    .project-card:focus-visible {
+      background: var(--surface-hover);
+      border-color: var(--border-hover);
+      transform: translateX(2px);
     }
 
-    .delay-300 {
-      animation-delay: 300ms;
-      opacity: 0;
+    .project-card:hover::before,
+    .project-card:focus-visible::before {
+      opacity: 1;
     }
 
-    /* Tech tag styling */
+    .project-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+
+    .project-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: -0.01em;
+    }
+
+    .project-arrow {
+      color: var(--tertiary);
+      font-size: 14px;
+      transition: transform 0.2s ease, color 0.2s ease;
+    }
+
+    .project-card:hover .project-arrow {
+      transform: translateX(3px) translateY(-3px);
+      color: var(--accent);
+    }
+
+    .project-desc {
+      font-size: 12px;
+      color: var(--secondary);
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+
+    .tech-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
     .tech-tag {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.7rem;
-      padding: 2px 8px;
-      border-radius: 99px;
-      background-color: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      color: #A1A1AA;
-      transition: all 0.2s;
+      font-size: 10px;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      color: var(--tertiary);
+      letter-spacing: 0.02em;
+      transition: color 0.2s, border-color 0.2s;
     }
 
     .project-card:hover .tech-tag {
-      color: #EDEDED;
-      border-color: rgba(255, 255, 255, 0.15);
+      color: var(--secondary);
+      border-color: var(--border-hover);
     }
 
-    .nav-link {
-      color: #A1A1AA;
+    .tech-tag-accent {
+      border-color: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .project-card:hover .tech-tag-accent {
+      border-color: var(--accent);
+    }
+
+    .tag-private {
+      display: inline-block;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      padding: 2px 8px;
+      border: 1px solid var(--border);
+      color: var(--tertiary);
+      background: rgba(255, 255, 255, 0.02);
+      margin-left: 8px;
+    }
+
+    /* Side projects grid */
+
+    .side-project-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px;
+    }
+
+    .side-card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 16px 18px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .side-card:first-child {
+      border-radius: 8px 0 0 0;
+    }
+
+    .side-card:last-child {
+      border-radius: 0 0 8px 0;
+    }
+
+    .side-card:nth-child(2) {
+      border-radius: 0 8px 0 0;
+    }
+
+    .side-card:nth-child(3) {
+      border-radius: 0 0 0 8px;
+    }
+
+    .side-card:hover,
+    .side-card:focus-visible {
+      background: var(--surface-hover);
+      border-color: var(--border-hover);
+    }
+
+    .side-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--primary);
+    }
+
+    .side-card-desc {
+      font-size: 11px;
+      color: var(--secondary);
+      line-height: 1.5;
+    }
+
+    /* Experience */
+
+    .exp-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .exp-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dim) 100%);
+    }
+
+    .exp-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .exp-meta {
+      font-size: 11px;
+      color: var(--tertiary);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .exp-desc {
+      font-size: 12px;
+      color: var(--secondary);
+      line-height: 1.6;
+    }
+
+    /* Contribution heatmap */
+
+    .heatmap-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px 14px;
+    }
+
+    .heatmap-scroll {
+      overflow-x: auto;
+      margin-bottom: 12px;
+    }
+
+    .heatmap-scroll::-webkit-scrollbar {
+      height: 3px;
+    }
+
+    .heatmap-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .heatmap-scroll::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    .heatmap-scroll::-webkit-scrollbar-thumb:hover {
+      background: var(--border-hover);
+    }
+
+    .heatmap-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .heatmap-grid {
+      display: flex;
+      gap: 3px;
+      min-width: fit-content;
+    }
+
+    .heatmap-week {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .heatmap-cell {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      background: transparent;
+      transition: transform 0.15s ease, outline 0.15s ease;
+      cursor: default;
+      position: relative;
+    }
+
+    .heatmap-cell[data-level="0"] {
+      background: #111115;
+    }
+
+    .heatmap-cell[data-level="1"] {
+      background: #0e2a1c;
+    }
+
+    .heatmap-cell[data-level="2"] {
+      background: #0a4a28;
+    }
+
+    .heatmap-cell[data-level="3"] {
+      background: #167f3f;
+    }
+
+    .heatmap-cell[data-level="4"] {
+      background: #22b455;
+    }
+
+    .heatmap-cell:hover {
+      transform: scale(1.5);
+      z-index: 2;
+      outline: 1px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    /* Year selector */
+
+    .heatmap-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .year-selector {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 12px;
+    }
+
+    .year-btn {
+      font-family: var(--font);
+      font-size: 10px;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--tertiary);
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.05em;
+    }
+
+    .year-btn:first-child {
+      border-radius: 4px 0 0 4px;
+    }
+
+    .year-btn:last-child {
+      border-radius: 0 4px 4px 0;
+    }
+
+    .year-btn:only-child {
+      border-radius: 4px;
+    }
+
+    .year-btn:hover {
+      color: var(--secondary);
+      border-color: var(--border-hover);
+    }
+
+    .year-btn.active {
+      color: var(--accent);
+      border-color: var(--accent-dim);
+      background: var(--accent-dim);
+    }
+
+    .year-total {
+      font-size: 10px;
+      color: var(--tertiary);
+      margin-bottom: 12px;
+    }
+
+    .heatmap-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9px;
+      color: var(--tertiary);
+    }
+
+    .heatmap-legend {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .heatmap-legend-cell {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    /* Stats */
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+      margin-bottom: 2px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 16px 18px;
+      text-align: center;
+    }
+
+    .stat-card:first-child {
+      border-radius: 8px 0 0 0;
+    }
+
+    .stat-card:last-child {
+      border-radius: 0 8px 0 0;
+    }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      text-shadow: 0 0 20px var(--accent-glow);
+      line-height: 1;
+      margin-bottom: 2px;
+      min-height: 26px;
+    }
+
+    .stat-sub {
+      font-size: 9px;
+      color: var(--tertiary);
+      margin-bottom: 4px;
+      min-height: 14px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* Skeleton loading */
+
+    .skeleton {
+      background: linear-gradient(90deg,
+          var(--surface) 0px,
+          var(--surface-hover) 40px,
+          var(--surface) 80px);
+      background-size: 200px 100%;
+      animation: shimmer 1.5s ease-in-out infinite;
+      border-radius: 4px;
+    }
+
+    .skeleton-stat {
+      width: 48px;
+      height: 22px;
+      margin: 0 auto 4px;
+    }
+
+    .skeleton-heatmap {
+      display: flex;
+      gap: 3px;
+      padding: 4px 0;
+    }
+
+    .skeleton-heatmap .sk-week {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .skeleton-heatmap .sk-cell {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      opacity: 0.5;
+    }
+
+    /* Fixed footer nav */
+
+    .footer-fixed {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      display: flex;
+      justify-content: center;
+      padding: 0 0 24px;
+      pointer-events: none;
+    }
+
+    .footer-nav-inner {
+      pointer-events: auto;
+      display: flex;
+      gap: 2px;
+      background: rgba(9, 9, 11, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 0 24px rgba(0, 0, 0, 0.6);
+    }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      background: transparent;
+      border: none;
+      color: var(--tertiary);
       transition: color 0.2s;
+      cursor: pointer;
       text-decoration: none;
     }
 
-    .nav-link:hover {
-      color: #EDEDED;
+    .nav-btn:first-child {
+      border-radius: 8px 0 0 8px;
+    }
+
+    .nav-btn:last-child {
+      border-radius: 0 8px 8px 0;
+    }
+
+    .nav-btn:hover,
+    .nav-btn:focus-visible {
+      color: var(--accent);
+    }
+
+    .nav-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Terminal intro */
+
+    .terminal-line {
+      color: var(--secondary);
+      font-size: 12px;
+      line-height: 1.8;
+      margin-bottom: 24px;
+    }
+
+    .terminal-prompt {
+      color: var(--accent);
+    }
+
+    .terminal-cmd {
+      color: var(--primary);
+    }
+
+    /* Section spacing */
+
+    .section-gap {
+      margin-bottom: 64px;
+    }
+
+    .section-gap-sm {
+      margin-bottom: 48px;
+    }
+
+    /* Focus */
+
+    *:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Responsive */
+
+    @media (max-width: 600px) {
+      .side-project-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .side-card:first-child {
+        border-radius: 8px 8px 0 0;
+      }
+
+      .side-card:last-child {
+        border-radius: 0 0 8px 8px;
+      }
+
+      .side-card:nth-child(2),
+      .side-card:nth-child(3) {
+        border-radius: 0;
+      }
+
+      .stats-row {
+        grid-template-columns: 1fr;
+      }
+
+      .stat-card:first-child {
+        border-radius: 8px 8px 0 0;
+      }
+
+      .stat-card:last-child {
+        border-radius: 0 0 8px 8px;
+      }
+
+      .container {
+        padding: 0 16px;
+        padding-bottom: 90px;
+      }
+
+      .heatmap-cell {
+        width: 10px;
+        height: 10px;
+      }
     }
   </style>
 </head>
 
-<body class="min-h-screen flex flex-col items-center relative overflow-x-hidden font-sans pb-24">
+<body>
+  <div class="bg-grid"></div>
 
-  <!-- Subtle ambient background effect -->
-  <div class="fixed inset-0 pointer-events-none z-0">
-    <div class="absolute inset-0 bg-dot-pattern mask-vignette opacity-50"></div>
-  </div>
+  <div class="container section">
+    <!-- Header spacing -->
+    <div style="height: 80px;"></div>
 
-  <div class="w-full max-w-[640px] px-6 sm:px-8 pt-20 sm:pt-32 relative z-10 w-full flex-grow">
+    <!-- Hero -->
+    <header class="anim-fade-up anim-delay-1 section-gap-sm">
+      <div class="terminal-line">
+        <span class="terminal-prompt">$</span> <span class="terminal-cmd">whoami</span>
+      </div>
 
-    <!-- Header / Intro -->
-    <header class="mb-16 animate-fade-up delay-100">
-      <div class="flex items-center gap-6 mb-8">
-        <div class="relative group">
-          <div
-            class="absolute -inset-1 bg-white/10 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-          </div>
+      <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px;">
+        <div style="position: relative;">
+          <div style="
+            position: absolute;
+            inset: -4px;
+            border: 1px solid var(--accent-dim);
+            border-radius: 50%;
+            opacity: 0.5;
+          "></div>
           <img src="/static/img/profile.jpg" alt="Sajid Banday"
-            onerror="this.onerror=null;this.src='https://placehold.co/120x120/111111/e5e7eb?text=SB';"
-            class="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full border border-border object-cover bg-surface grayscale group-hover:grayscale-0 transition-all duration-500">
+            onerror="this.onerror=null;this.src='https://placehold.co/96x96/111111/e5e7eb?text=SB';" style="
+              width: 72px;
+              height: 72px;
+              border-radius: 50%;
+              object-fit: cover;
+              display: block;
+              border: 1px solid var(--border);
+              filter: grayscale(1) contrast(1.1);
+            ">
         </div>
         <div>
-          <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-primary mb-1.5">Sajid Banday</h1>
-          <div class="flex items-center gap-2.5">
-            <span class="text-sm font-mono text-secondary">Builder</span>
-            <span class="flex h-2 w-2">
-              <span
-                class="animate-pulse-slow absolute inline-flex h-2 w-2 rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
+          <h1 style="font-size: 22px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em;">
+            sajid_banday<span class="cursor-blink" style="color: var(--accent);">_</span>
+          </h1>
+          <div style="display: flex; align-items: center; gap: 10px; margin-top: 6px;">
+            <span style="font-size: 12px; color: var(--tertiary);">BUILDER</span>
+            <span
+              style="display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent-glow);"></span>
           </div>
         </div>
       </div>
 
-      <p class="text-secondary text-[15px] sm:text-base leading-relaxed max-w-[480px]">
-        I enjoy building systems and solving technical challenges with practical, efficient solutions. Focused on
-        backend services, reliable infrastructure, and clean interfaces.
+      <p style="font-size: 13px; color: var(--secondary); max-width: 520px; line-height: 1.8;">
+        [Building systems] backend infrastructure, edge services, developer tools.
       </p>
     </header>
 
-    <!-- Projects List -->
-    <section class="mb-16 animate-fade-up delay-200">
-      <h2 class="text-xs font-mono text-secondary uppercase tracking-widest mb-6 pb-2 border-b border-border/50">
-        Selected Projects</h2>
+    <!-- Stats -->
+    <div class="stats-row anim-fade-up anim-delay-2 section-gap-sm" id="stats-row">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-repos"><span class="skeleton skeleton-stat" style="display:block;"></span>
+        </div>
+        <div class="stat-sub"></div>
+        <div class="stat-label">Repos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-contributions"><span class="skeleton skeleton-stat"
+            style="display:block;"></span></div>
+        <div class="stat-sub" id="stat-contributions-sub"></div>
+        <div class="stat-label">Contributions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-stars"><span class="skeleton skeleton-stat" style="display:block;"></span>
+        </div>
+        <div class="stat-sub"></div>
+        <div class="stat-label">Stars</div>
+      </div>
+    </div>
 
-      <div class="flex flex-col gap-4">
+    <!-- GitHub Contributions -->
+    <section class="anim-fade-up anim-delay-3 section-gap-sm">
+      <div class="section-label">Contributions</div>
+      <div class="heatmap-container" id="heatmap-container">
+        <div class="heatmap-header">
+          <div class="year-selector" id="year-selector"></div>
+          <div class="year-total" id="year-total"></div>
+        </div>
+        <div class="heatmap-scroll" id="heatmap-scroll">
+          <!-- skeleton -->
+          <div class="skeleton-heatmap" id="heatmap-skeleton"></div>
+        </div>
+        <div class="heatmap-bottom" id="heatmap-bottom">
+          <span>tracking open source work</span>
+          <span class="heatmap-legend">
+            less
+            <span class="heatmap-legend-cell" style="background:#111115"></span>
+            <span class="heatmap-legend-cell" style="background:#0e2a1c"></span>
+            <span class="heatmap-legend-cell" style="background:#0a4a28"></span>
+            <span class="heatmap-legend-cell" style="background:#167f3f"></span>
+            <span class="heatmap-legend-cell" style="background:#22b455"></span>
+            more
+          </span>
+        </div>
+      </div>
+    </section>
 
-        <!-- Project Item -->
-        <a href="https://github.com/BandaySajid/gateway" target="_blank"
-          class="project-card block bg-surface border border-border rounded-xl p-5 hover:cursor-pointer no-underline group relative overflow-hidden">
-          <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
+    <!-- Projects -->
+    <section class="anim-fade-up anim-delay-4 section-gap">
+      <div class="section-label">Projects</div>
+
+      <div class="project-grid">
+        <a href="https://github.com/BandaySajid/gateway" target="_blank" class="project-card">
+          <div class="project-card-top">
+            <span class="project-title">amplizard/gateway</span>
+            <span class="project-arrow">&#8599;</span>
           </div>
-          <div class="flex justify-between items-start mb-2">
-            <h3 class="font-medium text-primary text-base transition-colors">Amplizard Gateway</h3>
-            <span
-              class="opacity-0 group-hover:opacity-100 transition-opacity text-secondary text-sm transform translate-x-1 group-hover:translate-x-0 duration-300">↗</span>
-          </div>
-          <p class="text-sm text-secondary mb-4 leading-relaxed line-clamp-2">A rate-limiting gateway using Cloudflare's
-            edge to intercept and cache rate-limited requests, reducing origin server load and infrastructure costs.</p>
-          <div class="flex flex-wrap gap-2">
+          <p class="project-desc">Rate-limiting gateway on Cloudflare edge. Intercepts and caches rate-limited requests
+            to reduce origin server load and infrastructure costs.</p>
+          <div class="tech-list">
             <span class="tech-tag">TypeScript</span>
             <span class="tech-tag">Node.js</span>
             <span class="tech-tag">Redis</span>
-            <span
-              class="tech-tag text-blue-400 border-blue-400/20 bg-blue-400/5 group-hover:border-blue-400/40">Cloudflare</span>
+            <span class="tech-tag tech-tag-accent">Cloudflare</span>
           </div>
         </a>
 
-        <!-- Project Item -->
-        <a href="https://github.com/BandaySajid/gateway-app" target="_blank"
-          class="project-card block bg-surface border border-border rounded-xl p-5 hover:cursor-pointer no-underline group relative overflow-hidden">
-          <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
+        <a href="https://github.com/BandaySajid/gateway-app" target="_blank" class="project-card">
+          <div class="project-card-top">
+            <span class="project-title">amplizard/interface</span>
+            <span class="project-arrow">&#8599;</span>
           </div>
-          <div class="flex justify-between items-start mb-2">
-            <h3 class="font-medium text-primary text-base transition-colors">Amplizard Interface</h3>
-            <span
-              class="opacity-0 group-hover:opacity-100 transition-opacity text-secondary text-sm transform translate-x-1 group-hover:translate-x-0 duration-300">↗</span>
-          </div>
-          <p class="text-sm text-secondary mb-4 leading-relaxed line-clamp-2">A robust consumer backend with an
-            intuitive web interface for managing the Amplizard gateway seamlessly.</p>
-          <div class="flex flex-wrap gap-2">
+          <p class="project-desc">Consumer backend and web dashboard for managing the Amplizard gateway. Built on
+            Cloudflare Workers with D1 and KV storage.</p>
+          <div class="tech-list">
             <span class="tech-tag">TypeScript</span>
-            <span
-              class="tech-tag text-orange-400 border-orange-400/20 bg-orange-400/5 group-hover:border-orange-400/40">Cloudflare
-              Workers</span>
-            <span
-              class="tech-tag text-purple-400 border-purple-400/20 bg-purple-400/5 group-hover:border-purple-400/40">D1
-              & KV</span>
+            <span class="tech-tag tech-tag-accent">Workers</span>
+            <span class="tech-tag tech-tag-accent">D1 &amp; KV</span>
           </div>
         </a>
 
-        <!-- Project Item -->
-        <a href="https://github.com/BandaySajid/tweet-agent" target="_blank"
-          class="project-card block bg-surface border border-border rounded-xl p-5 hover:cursor-pointer no-underline group relative overflow-hidden">
-          <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
+        <a href="https://github.com/BandaySajid/tweet-agent" target="_blank" class="project-card">
+          <div class="project-card-top">
+            <span class="project-title">tweet-agent</span>
+            <span class="project-arrow">&#8599;</span>
           </div>
-          <div class="flex justify-between items-start mb-2">
-            <h3 class="font-medium text-primary text-base transition-colors">Tweet Agent</h3>
-            <span
-              class="opacity-0 group-hover:opacity-100 transition-opacity text-secondary text-sm transform translate-x-1 group-hover:translate-x-0 duration-300">↗</span>
-          </div>
-          <p class="text-sm text-secondary mb-4 leading-relaxed line-clamp-2">A Node.js Twitter client that interacts
-            with the Twitter browser API, designed for building AI-powered autonomous agents.</p>
-          <div class="flex flex-wrap gap-2">
+          <p class="project-desc">Node.js Twitter client interacting with the Twitter browser API. Purpose-built for
+            AI-powered autonomous agents.</p>
+          <div class="tech-list">
             <span class="tech-tag">TypeScript</span>
+            <span class="tech-tag">Node.js</span>
           </div>
         </a>
 
-        <!-- Project Item -->
-        <a href="https://vimeo.com/1101758107/" target="_blank"
-          class="project-card block bg-surface border border-border rounded-xl p-5 hover:cursor-pointer no-underline group relative overflow-hidden">
-          <div class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
+        <a href="https://vimeo.com/1101758107/" target="_blank" class="project-card">
+          <div class="project-card-top">
+            <span>
+              <span class="project-title">epick</span>
+              <span class="tag-private">private</span>
+            </span>
+            <span class="project-arrow">&#8599;</span>
           </div>
-          <div class="flex justify-between items-start mb-1">
-            <div class="flex items-center gap-2">
-              <h3 class="font-medium text-primary text-base transition-colors">Epick Backend & Driver App</h3>
-              <span
-                class="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded-sm bg-neutral-800 text-neutral-400 border border-neutral-700">Private</span>
-            </div>
-            <span
-              class="opacity-0 group-hover:opacity-100 transition-opacity text-secondary text-sm transform translate-x-1 group-hover:translate-x-0 duration-300">↗</span>
-          </div>
-          <p class="text-sm text-secondary mb-4 leading-relaxed line-clamp-2 mt-1">Full stack infrastructure for a local
-            ride-hailing app in Kashmir featuring low latency tracking, WhatsApp integration, and specialized driver
-            tools.</p>
-          <div class="flex flex-wrap gap-2">
-            <span class="tech-tag">TypeScript & JS</span>
-            <span class="tech-tag">Cloudflare Workers/DO</span>
+          <p class="project-desc">Full stack ride-hailing infrastructure for Kashmir. Real-time tracking, WhatsApp
+            integration, driver tools. Workers, Durable Objects, Supabase, React Native.</p>
+          <div class="tech-list">
+            <span class="tech-tag">TypeScript &amp; JS</span>
+            <span class="tech-tag tech-tag-accent">Workers/DO</span>
             <span class="tech-tag">Supabase</span>
             <span class="tech-tag">React Native</span>
           </div>
         </a>
+      </div>
 
-        <!-- Simple Project Rows -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-          <a href="https://github.com/BandaySajid/chatgpt-node" target="_blank"
-            class="project-card block bg-surface border border-border rounded-xl p-4 group relative overflow-hidden">
-            <div
-              class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
-            </div>
-            <h3
-              class="font-medium text-primary text-[15px] mb-1 group-hover:underline decoration-white/30 underline-offset-4">
-              chatgpt-node</h3>
-            <p class="text-[13px] text-secondary">Node.js library for interacting with ChatGPT API using Curl
-              Impersonate.</p>
-          </a>
-          <a href="https://github.com/BandaySajid/mscache" target="_blank"
-            class="project-card block bg-surface border border-border rounded-xl p-4 group relative overflow-hidden">
-            <div
-              class="absolute inset-y-0 left-0 w-[2px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
-            </div>
-            <h3
-              class="font-medium text-primary text-[15px] mb-1 group-hover:underline decoration-white/30 underline-offset-4">
-              mscache</h3>
-            <p class="text-[13px] text-secondary">Experimental in-memory KV store in TS with Redis-like commands.</p>
-          </a>
-        </div>
-
+      <div class="side-project-grid" style="margin-top: 2px;">
+        <a href="https://github.com/BandaySajid/chatgpt-node" target="_blank" class="side-card">
+          <div class="side-card-title">chatgpt-node</div>
+          <div class="side-card-desc">Node.js library for ChatGPT API with Curl Impersonate.</div>
+        </a>
+        <a href="https://github.com/BandaySajid/mscache" target="_blank" class="side-card">
+          <div class="side-card-title">mscache</div>
+          <div class="side-card-desc">Experimental in-memory KV store with Redis-like commands.</div>
+        </a>
       </div>
     </section>
 
-    <!-- Experience Section -->
-    <section class="mb-16 animate-fade-up delay-300">
-      <h2 class="text-xs font-mono text-secondary uppercase tracking-widest mb-6 pb-2 border-b border-border/50">
-        Experience</h2>
-
-      <div class="project-card bg-surface border border-border rounded-xl p-5 relative overflow-hidden">
-        <div
-          class="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-transparent via-white/10 to-transparent">
+    <!-- Experience -->
+    <section class="anim-fade-up anim-delay-5 section-gap">
+      <div class="section-label">Experience</div>
+      <div class="exp-card">
+        <div class="exp-title">Backend Developer &mdash; FastBeetle</div>
+        <div class="exp-meta">
+          <span>Srinagar</span>
+          <span>2023</span>
         </div>
-        <div class="flex justify-between items-baseline mb-1">
-          <h3 class="font-medium text-primary text-base">Backend Developer at FastBeetle</h3>
-          <span class="text-xs font-mono text-secondary">2023</span>
-        </div>
-        <p class="text-sm text-secondary leading-relaxed">Srinagar — Contributed to API integration, code migration,
-          database query optimization, and frontend tasks for a major logistics platform.</p>
+        <div class="exp-desc">API integration, code migration, database query optimization, and frontend development for
+          a major logistics platform.</div>
       </div>
     </section>
 
   </div>
 
-  <!-- Minimal Footer Nav -->
-  <nav
-    class="fixed bottom-0 left-0 w-full z-50 flex justify-center pb-6 pt-4 animate-fade-up delay-300 pointer-events-none">
-    <div
-      class="pointer-events-auto flex items-center space-x-6 bg-[#0E0E10]/90 backdrop-blur-md border border-border rounded-full px-6 py-3 shadow-2xl">
-      <a href="mailto:ibandaysajid@gmail.com" class="nav-link" aria-label="Email">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fixed Footer Nav -->
+  <nav class="footer-fixed">
+    <div class="footer-nav-inner">
+      <a href="mailto:ibandaysajid@gmail.com" class="nav-btn" aria-label="Email">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
             d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
           </path>
         </svg>
       </a>
-      <a href="https://github.com/bandaysajid" target="_blank" class="nav-link" aria-label="GitHub">
-        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+      <a href="https://github.com/bandaysajid" target="_blank" class="nav-btn" aria-label="GitHub">
+        <svg fill="currentColor" viewBox="0 0 24 24">
           <path fill-rule="evenodd"
             d="M12 2C6.477 2 2 6.484 2 12.017c0 4.418 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.164-1.11-1.478-1.11-1.478-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.687-.103-.253-.446-1.272.098-2.65 0 0 .84-.268 2.75 1.022A9.607 9.607 0 0112 6.68a9.607 9.607 0 012.504.337c1.91-.29 2.75-1.022 2.75-1.022.546 1.379.202 2.398.099 2.65.64.699 1.029 1.594 1.029 2.687 0 3.84-2.334 4.69-4.56 4.948.358.309.672.923.672 1.851 0 1.338-.012 2.417-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
             clip-rule="evenodd"></path>
         </svg>
       </a>
-      <a href="https://x.com/sajidbandayy" target="_blank" class="nav-link" aria-label="X (Twitter)">
-        <svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+      <a href="https://x.com/sajidbandayy" target="_blank" class="nav-btn" aria-label="X (Twitter)">
+        <svg fill="currentColor" viewBox="0 0 24 24">
           <path
             d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
         </svg>
       </a>
     </div>
   </nav>
+
+  <script>
+    (function () {
+      const GITHUB_USER = 'bandaysajid';
+      const API_BASE = 'https://github-contributions-api.jogruber.de/v4';
+
+      const heatmapContainer = document.getElementById('heatmap-container');
+      const heatmapScroll = document.getElementById('heatmap-scroll');
+      const heatmapSkeleton = document.getElementById('heatmap-skeleton');
+      const yearSelector = document.getElementById('year-selector');
+      const yearTotal = document.getElementById('year-total');
+      const heatmapBottom = document.getElementById('heatmap-bottom');
+
+      // Generate skeleton heatmap
+      function buildSkeleton() {
+        let html = '';
+        for (let w = 0; w < 53; w++) {
+          html += '<div class="sk-week">';
+          for (let d = 0; d < 7; d++) {
+            const rand = Math.floor(Math.random() * 3);
+            html += `<div class="sk-cell skeleton" style="width:12px;height:12px;opacity:${0.2 + rand * 0.2}"></div>`;
+          }
+          html += '</div>';
+        }
+        return html;
+      }
+      heatmapSkeleton.innerHTML = buildSkeleton();
+
+      let totalData = {};
+      let currentYear = String(new Date().getFullYear());
+
+      // Fetch all years + repos initially
+      async function init() {
+        try {
+          const [allRes, reposRes] = await Promise.all([
+            fetch(`${API_BASE}/${GITHUB_USER}`),
+            fetch(`https://api.github.com/users/${GITHUB_USER}/repos?per_page=100`)
+          ]);
+
+          if (allRes.ok) {
+            const allData = await allRes.json();
+            totalData = allData.total || {};
+            const years = Object.keys(totalData).sort();
+            renderYearSelector(years);
+            loadYear(currentYear);
+          }
+
+          if (reposRes.ok) {
+            const repos = await reposRes.json();
+            updateStat('stat-repos', repos.length);
+            const totalStars = repos.reduce((sum, r) => sum + (r.stargazers_count || 0), 0);
+            updateStat('stat-stars', totalStars);
+          } else {
+            updateStat('stat-repos', '—');
+            updateStat('stat-stars', '—');
+          }
+        } catch (err) {
+          console.error('Init error:', err);
+          updateStat('stat-repos', '—');
+          updateStat('stat-contributions', '—');
+          updateContribSub('');
+          updateStat('stat-stars', '—');
+          heatmapScroll.innerHTML = '<div style="text-align:center;color:var(--tertiary);font-size:11px;padding:16px 0;">could not load data</div>';
+        }
+      }
+
+      function updateStat(id, value) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const skel = el.querySelector('.skeleton');
+        if (skel) skel.remove();
+        el.textContent = typeof value === 'number' ? value.toLocaleString() : value;
+      }
+
+      function updateContribSub(text) {
+        const el = document.getElementById('stat-contributions-sub');
+        if (el) el.textContent = text;
+      }
+
+      function updateLifetimeContribs() {
+        const total = Object.values(totalData).reduce((sum, v) => sum + (v || 0), 0);
+        updateStat('stat-contributions', total);
+        const thisYear = totalData[currentYear] || 0;
+        updateContribSub(`this year: ${thisYear.toLocaleString()}`);
+      }
+
+      function renderYearSelector(years) {
+        const available = years.filter(y => totalData[y] > 0);
+        if (available.length === 0) return;
+
+        if (!available.includes(currentYear)) {
+          available.push(currentYear);
+          available.sort();
+        }
+
+        yearSelector.innerHTML = available.map(y => {
+          const active = y === currentYear ? ' active' : '';
+          return `<button class="year-btn${active}" data-year="${y}">${y}</button>`;
+        }).join('');
+
+        yearSelector.querySelectorAll('.year-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const year = btn.dataset.year;
+            if (year === currentYear && btn.classList.contains('active')) return;
+            currentYear = year;
+            yearSelector.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadYear(year);
+          });
+        });
+
+        updateYearTotal(currentYear);
+        updateLifetimeContribs();
+      }
+
+      function updateYearTotal(year) {
+        const count = totalData[year] || 0;
+        yearTotal.textContent = count > 0 ? `${count.toLocaleString()} contributions` : 'no contributions';
+      }
+
+      async function loadYear(year) {
+        // Show skeleton
+        heatmapScroll.innerHTML = '';
+        const skelDiv = document.createElement('div');
+        skelDiv.className = 'skeleton-heatmap';
+        skelDiv.innerHTML = buildSkeleton();
+        heatmapScroll.appendChild(skelDiv);
+        updateYearTotal(year);
+
+        try {
+          const res = await fetch(`${API_BASE}/${GITHUB_USER}?y=${year}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const contributions = data.contributions || [];
+
+          // Update total for this year from latest data
+          const yearTotalCount = contributions.reduce((sum, d) => sum + (d.count || 0), 0);
+          totalData[year] = yearTotalCount;
+          updateYearTotal(year);
+          updateLifetimeContribs();
+
+          if (contributions.length === 0) {
+            heatmapScroll.innerHTML = '<div style="text-align:center;color:var(--tertiary);font-size:11px;padding:16px 0;">no activity in ' + year + '</div>';
+            return;
+          }
+
+          // Group by week (Mon=1, Sun=7)
+          const weeks = [];
+          let currentWeek = [];
+
+          contributions.forEach((day, i) => {
+            const dow = new Date(day.date).getDay(); // 0=Sun, 6=Sat
+            currentWeek.push(day);
+            if (dow === 6 || i === contributions.length - 1) {
+              weeks.push(currentWeek);
+              currentWeek = [];
+            }
+          });
+          if (currentWeek.length > 0) weeks.push(currentWeek);
+
+          // Pad first week: start from Sunday
+          const firstWeek = weeks[0];
+          const firstDow = new Date(firstWeek[0].date).getDay();
+          for (let i = 0; i < firstDow; i++) {
+            firstWeek.unshift(null);
+          }
+
+          // Pad to 7 rows per week
+          weeks.forEach(week => {
+            while (week.length < 7) week.push(null);
+          });
+
+          let html = '<div class="heatmap-grid">';
+          weeks.forEach(week => {
+            html += '<div class="heatmap-week">';
+            week.forEach(day => {
+              if (day === null) {
+                html += '<div class="heatmap-cell" style="background:transparent"></div>';
+              } else {
+                const level = day.level || 0;
+                const date = day.date;
+                const count = day.count || 0;
+                html += `<div class="heatmap-cell" data-level="${level}" title="${date}: ${count} contribution${count !== 1 ? 's' : ''}"></div>`;
+              }
+            });
+            html += '</div>';
+          });
+          html += '</div>';
+
+          heatmapScroll.innerHTML = html;
+        } catch (err) {
+          console.error('Year load error:', err);
+          heatmapScroll.innerHTML = '<div style="text-align:center;color:var(--tertiary);font-size:11px;padding:16px 0;">could not load ' + year + '</div>';
+        }
+      }
+
+      init();
+    })();
+  </script>
 
 </body>
 
