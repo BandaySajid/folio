@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { classify, parseUA } from './classify';
+import { detectPhone, type ClientHints, type Screen } from './devices';
 import { fitDiscordLimits, render, renderAlert, type Totals, type Visit } from './render';
 
 export interface Env {
@@ -18,6 +19,8 @@ interface Beacon {
   vid?: string;
   returning?: boolean;
   path?: string;
+  hints?: ClientHints;
+  screen?: Screen;
 }
 
 const DAY = 86_400_000;
@@ -54,6 +57,11 @@ export default {
       const referrer = s(body.referrer, 512) || '';
       const attribution = classify(pageUrl, referrer, ua, hosts);
       const device = parseUA(ua);
+      const hints: ClientHints = typeof body.hints === 'object' && body.hints ? { model: s(body.hints.model, 60), platform: s(body.hints.platform, 20), platformVersion: s(body.hints.platformVersion, 20) } : {};
+      const scr = typeof body.screen === 'object' && body.screen ? body.screen : {};
+      const num = (v: unknown, max: number) => (typeof v === 'number' && v > 0 && v <= max ? v : undefined);
+      const screen: Screen = { w: num(scr.w, 10000), h: num(scr.h, 10000), dpr: num(scr.dpr, 10) };
+      const phone = detectPhone(ua, hints, screen);
       const cf = (request.cf ?? {}) as IncomingRequestCfProperties;
       const vid = /^[\w-]{8,64}$/.test(body.vid ?? '') ? body.vid! : await fallbackVisitorId(request, ua);
 
@@ -71,7 +79,13 @@ export default {
         city: (cf.city as string) ?? '',
         region: (cf.region as string) ?? '',
         device: device.device,
-        os: device.os,
+        os: phone.os || device.os,
+        os_version: phone.osVersion,
+        brand: phone.brand,
+        model: phone.model,
+        model_code: phone.modelCode,
+        model_exact: phone.exact ? 1 : 0,
+        screen: screen.w && screen.h ? `${screen.w}x${screen.h}@${screen.dpr ?? 1}` : '',
         browser: device.browser,
         referrer: referrer.slice(0, 200),
         path: s(body.path, 200) || '/',
@@ -123,6 +137,11 @@ export class Dashboard extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
       CREATE TABLE IF NOT EXISTS alerts (vid TEXT NOT NULL, source TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (vid, source));
     `);
+    // Columns added after the first release.
+    const existing = new Set(this.sql.exec<{ name: string }>('PRAGMA table_info(visits)').toArray().map((c) => c.name));
+    for (const [col, type] of [['os_version', 'TEXT'], ['brand', 'TEXT'], ['model', 'TEXT'], ['model_code', 'TEXT'], ['model_exact', 'INTEGER'], ['screen', 'TEXT']]) {
+      if (!existing.has(col)) this.sql.exec(`ALTER TABLE visits ADD COLUMN ${col} ${type}`);
+    }
   }
 
   async record(visit: Visit, isBot: boolean) {

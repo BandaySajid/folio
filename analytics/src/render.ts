@@ -16,6 +16,12 @@ export interface Visit {
   region: string;
   device: string;
   os: string;
+  os_version: string | null;
+  brand: string | null;
+  model: string | null;
+  model_code: string | null;
+  model_exact: number | null;
+  screen: string | null;
   browser: string;
   referrer: string;
   path: string;
@@ -72,6 +78,17 @@ const SOURCE_ICON: Record<string, string> = {
 const icon = (s: string) => SOURCE_ICON[s] ?? '🌐';
 
 const DEVICE_ICON: Record<string, string> = { Mobile: '📱', Desktop: '🖥️', Tablet: '📟' };
+const OS_ICON: Record<string, string> = { iOS: '🍏', iPadOS: '🍏', macOS: '🍏', Android: '🤖', Windows: '🪟', Linux: '🐧', ChromeOS: '🌐' };
+const osIcon = (os: string) => OS_ICON[os] ?? '💻';
+// Model guessed from screen size (iPhones outside Instagram/Facebook).
+const estimated = (v: Pick<Visit, 'model_exact' | 'model_code'>) => !v.model_exact && !!v.model_code?.includes('@');
+const osLabel = (v: Pick<Visit, 'os' | 'os_version'>) => [v.os, v.os_version].filter(Boolean).join(' ');
+
+// "Galaxy S23 Ultra · Android 14", "iPhone 14 Pro / 15 … (est.) · iOS 17.4", "macOS"
+function deviceLabel(v: Visit, maxModel = 30) {
+  const model = v.model ? trunc(v.model, maxModel) + (estimated(v) ? ' (est.)' : '') : '';
+  return [model, osLabel(v)].filter(Boolean).join(' · ');
+}
 
 function flag(cc: string): string {
   if (!/^[A-Z]{2}$/.test(cc) || cc === 'XX' || cc === 'T1') return '🏳️';
@@ -224,7 +241,15 @@ export function render(visits: Visit[], totals: Totals, opts: RenderOptions) {
     .join('\n');
   const oses = countBy(d30, (v) => v.os)
     .slice(0, 5)
-    .map(([o, n]) => `${o} ${pct(n, d30.length)}%`)
+    .map(([o, n]) => `${osIcon(o)} ${o} ${pct(n, d30.length)}%`)
+    .join('\n');
+  const osVersions = countBy(d30, (v) => (v.os_version && (v.os === 'iOS' || v.os === 'Android') ? osLabel(v) : ''))
+    .slice(0, 5)
+    .map(([o, n]) => `${o} — **${n}**`)
+    .join('\n');
+  const phones = countBy(d30, (v) => (v.model && v.device !== 'Desktop' ? `${osIcon(v.os)} ${trunc(v.model, 34)}${estimated(v) ? ' ~' : ''}` : ''))
+    .slice(0, 6)
+    .map(([m, n]) => `${m} — **${n}**`)
     .join('\n');
   const returning = d30.filter((v) => v.return_visit).length;
 
@@ -237,6 +262,8 @@ export function render(visits: Visit[], totals: Totals, opts: RenderOptions) {
       { name: 'Devices', value: devices || '—', inline: true },
       { name: 'Browsers', value: browsers || '—', inline: true },
       { name: 'OS', value: oses || '—', inline: true },
+      { name: 'Phones', value: phones || '—', inline: true },
+      { name: 'OS versions', value: osVersions || '—', inline: true },
       {
         name: 'Visitors',
         value: d30.length ? `🆕 New ${pct(d30.length - returning, d30.length)}%\n🔁 Returning ${pct(returning, d30.length)}%\n🤖 Bots filtered ${totals.bots30d}` : '—',
@@ -253,7 +280,7 @@ export function render(visits: Visit[], totals: Totals, opts: RenderOptions) {
       const place = [v.city, v.country].filter(Boolean).join(', ') || 'Unknown';
       const via = v.in_app && v.in_app !== v.source ? ` via ${v.in_app}` : '';
       const tags = v.click_ids ? ` \`${v.click_ids.split(',')[0]}\`` : '';
-      return `<t:${unix(v.ts)}:R> ${flag(v.country)} **${trunc(place, 28)}** · ${icon(v.source)} ${trunc(sourceLabel(v), 32)}${via}${tags} · ${DEVICE_ICON[v.device] ?? ''} ${v.os} ${v.browser}${v.return_visit ? ' · 🔁' : ''}`;
+      return `<t:${unix(v.ts)}:R> ${flag(v.country)} **${trunc(place, 28)}** · ${icon(v.source)} ${trunc(sourceLabel(v), 32)}${via}${tags} · ${osIcon(v.os)} ${deviceLabel(v, 24)}${v.return_visit ? ' · 🔁' : ''}`;
     })
     .join('\n');
 
@@ -295,7 +322,17 @@ export function renderAlert(v: Visit, opts: Pick<RenderOptions, 'siteName'>, vis
         color: ACCENT,
         fields: [
           { name: 'Location', value: `${flag(v.country)} ${place || 'Unknown'}`, inline: true },
-          { name: 'Device', value: `${DEVICE_ICON[v.device] ?? ''} ${v.device} · ${v.os}\n${via}`, inline: true },
+          {
+            name: 'Device',
+            value: [
+              `${osIcon(v.os)} **${v.model || v.device}**${estimated(v) ? ' _(estimated from screen)_' : ''}`,
+              [v.brand, v.model_code && v.model_code !== v.model && !estimated(v) ? `\`${v.model_code}\`` : '', v.screen ? `${v.screen.replace(/@.*/, '')} screen` : ''].filter(Boolean).join(' · '),
+              `${DEVICE_ICON[v.device] ?? ''} ${osLabel(v) || v.os} · ${via}`,
+            ]
+              .filter(Boolean)
+              .join('\n'),
+            inline: true,
+          },
           { name: 'Visitor', value: v.return_visit ? '🔁 Returning' : '🆕 First visit', inline: true },
           ...(v.click_ids || v.campaign ? [{ name: 'Signals', value: [v.click_ids && v.click_ids.split(',').map((c) => `\`${c}\``).join(' '), v.campaign && `campaign \`${v.campaign}\``].filter(Boolean).join(' · '), inline: false }] : []),
         ],

@@ -22,13 +22,33 @@ function visitorId(): { vid?: string; returning: boolean } {
   }
 }
 
-export function sendPageView() {
+interface UAData {
+  getHighEntropyValues(hints: string[]): Promise<{ model?: string; platform?: string; platformVersion?: string }>;
+}
+
+// Chromium browsers hide the Android model in the user agent but expose it
+// through User-Agent Client Hints. Safari and Firefox don't support this.
+async function clientHints() {
+  const uaData = (navigator as Navigator & { userAgentData?: UAData }).userAgentData;
+  if (!uaData?.getHighEntropyValues) return undefined;
+  try {
+    const timeout = new Promise<undefined>((resolve) => setTimeout(resolve, 400));
+    const values = await Promise.race([uaData.getHighEntropyValues(['model', 'platformVersion']), timeout]);
+    return values && { model: values.model, platform: values.platform, platformVersion: values.platformVersion };
+  } catch {
+    return undefined;
+  }
+}
+
+export async function sendPageView() {
   if (!import.meta.env.PROD || !location.hostname.endsWith('sajidbanday.me')) return;
 
   const body = JSON.stringify({
     url: location.href,
     referrer: document.referrer,
     path: location.pathname,
+    screen: { w: screen.width, h: screen.height, dpr: devicePixelRatio },
+    hints: await clientHints(),
     ...visitorId(),
   });
   const blob = new Blob([body], { type: 'application/json' });
