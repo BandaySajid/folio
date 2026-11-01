@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { classify, parseUA } from './classify';
 import { detectPhone, type ClientHints, type Screen } from './devices';
-import { brandFallback, CATALOG_MAX_AGE_MS, CATALOG_URL, displayName, parseCatalog } from './models';
+import { brandFallback, catalogSize, displayName, lookupModel } from './models';
 import { fitDiscordLimits, render, renderAlert, type Totals, type Visit } from './render';
 
 export interface Env {
@@ -127,7 +127,13 @@ export default {
       };
 
       const isBot = device.bot || attribution.category === 'Internal' || (asn !== null && DATACENTER_ASNS.has(asn));
-      ctx.waitUntil(stub.record(visit, isBot));
+      ctx.waitUntil(
+        stub.record(visit, isBot).catch(async (err) => {
+          // Storage unavailable (quota, outage): still deliver the alert straight from here.
+          console.error('record failed, sending alert directly', err);
+          if (!isBot && wantsAlert(env, visit)) await sendDirectAlert(env, visit);
+        }),
+      );
       return new Response(null, { status: 204 });
     }
 
@@ -140,14 +146,46 @@ export default {
       if (action === 'stats') return Response.json(await stub.stats());
       if (action === 'recent') return Response.json(await stub.recent(Number(url.searchParams.get('n')) || 20));
       if (action === 'forget') return Response.json(await stub.forget(url.searchParams.get('vid') ?? ''));
-      if (action === 'import-models') return Response.json(await stub.importCatalog());
-      if (action === 'lookup') return Response.json(await stub.lookup(url.searchParams.get('model') ?? '', url.searchParams.get('device') ?? ''));
+      if (action === 'lookup') return Response.json({ result: lookupModel(url.searchParams.get('model') ?? '', url.searchParams.get('device') ?? ''), catalogModels: catalogSize() });
       return new Response('not found', { status: 404 });
     }
 
     return new Response('not found', { status: 404 });
   },
 } satisfies ExportedHandler<Env>;
+
+function wantsAlert(env: Env, visit: Visit) {
+  const sources = env.NOTIFY_SOURCES.split(',').map((x) => x.trim().toLowerCase());
+  return sources.includes('*') || sources.includes(visit.source.toLowerCase());
+}
+
+async function sendDirectAlert(env: Env, visit: Visit) {
+  const body = JSON.stringify(renderAlert(resolveModel(visit), { siteName: env.SITE_NAME }, 0, 0));
+  const webhook = env.DISCORD_WEBHOOK_URL.replace(/\/$/, '');
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      if (res.ok) return;
+      if (res.status !== 429 && res.status < 500) return console.error('direct alert rejected', res.status, await res.text());
+      await scheduler.wait((Number(res.headers.get('Retry-After')) || 1) * 1000);
+    } catch (err) {
+      console.error('direct alert failed', err);
+    }
+  }
+}
+
+// Android model code -> "Samsung Galaxy S23 Ultra" via the bundled Play catalog.
+function resolveModel(visit: Visit): Visit {
+  if ((visit.os !== 'Android' && visit.os !== 'HarmonyOS') || !visit.model_code) return visit;
+  const hit = lookupModel(visit.model_code, visit.codename ?? '');
+  if (hit) {
+    visit.brand = hit.brand || visit.brand;
+    visit.model = displayName(hit.brand, hit.name);
+  } else if (visit.brand && !visit.model_code.toLowerCase().startsWith(visit.brand.toLowerCase())) {
+    visit.model = `${visit.brand} ${visit.model_code}`;
+  }
+  return visit;
+}
 
 // Visitors without localStorage (private mode, blocked storage) get a
 // daily-rotating hash of IP + UA so they still count as one visitor per day.
@@ -161,7 +199,6 @@ async function fallbackVisitorId(request: Request, ua: string) {
 export class Dashboard extends DurableObject<Env> {
   private sql: SqlStorage;
   private recentHits = new Map<string, number[]>();
-  private catalogImport: Promise<{ ok: boolean; rows: number }> | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -177,8 +214,6 @@ export class Dashboard extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
       CREATE TABLE IF NOT EXISTS alerts (vid TEXT NOT NULL, source TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (vid, source));
       CREATE TABLE IF NOT EXISTS outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, body TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_at INTEGER NOT NULL, last_error TEXT);
-      CREATE TABLE IF NOT EXISTS models (model TEXT NOT NULL COLLATE NOCASE, device TEXT COLLATE NOCASE, brand TEXT, name TEXT);
-      CREATE INDEX IF NOT EXISTS models_model ON models(model);
     `);
     // Columns added after the first release.
     const existing = new Set(this.sql.exec<{ name: string }>('PRAGMA table_info(visits)').toArray().map((c) => c.name));
@@ -187,6 +222,12 @@ export class Dashboard extends DurableObject<Env> {
       ['screen', 'TEXT'], ['codename', 'TEXT'], ['asn', 'INTEGER'], ['as_org', 'TEXT'], ['ua', 'TEXT'],
     ];
     for (const [col, type] of added) if (!existing.has(col)) this.sql.exec(`ALTER TABLE visits ADD COLUMN ${col} ${type}`);
+    // The device catalog used to live in SQLite; it is bundled now.
+    try {
+      if (this.sql.exec(`SELECT 1 FROM sqlite_master WHERE name = 'models'`).toArray().length) this.sql.exec('DROP TABLE models');
+    } catch (err) {
+      console.error('could not drop old models table', err);
+    }
   }
 
   // ---- recording -------------------------------------------------------------
@@ -203,7 +244,7 @@ export class Dashboard extends DurableObject<Env> {
     this.recentHits.set(visit.vid, hits);
     if (this.recentHits.size > 5000) this.recentHits.clear();
 
-    await this.resolveModel(visit);
+    resolveModel(visit);
 
     const cols = Object.keys(visit);
     this.sql.exec(`INSERT INTO visits (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`, ...Object.values(visit));
@@ -211,73 +252,6 @@ export class Dashboard extends DurableObject<Env> {
     this.queueAlert(visit);
     if (!this.getMeta('dash_due')) this.setMeta('dash_due', String(Date.now() + UPDATE_DEBOUNCE_MS));
     await this.schedule();
-  }
-
-  // Android model code -> "Samsung Galaxy S23 Ultra" via the Play catalog.
-  private async resolveModel(visit: Visit) {
-    if ((visit.os !== 'Android' && visit.os !== 'HarmonyOS') || !visit.model_code) return;
-    try {
-      await this.ensureCatalog();
-    } catch (err) {
-      console.error('catalog unavailable', err);
-    }
-    const hit = this.findModel(visit.model_code, visit.codename ?? '');
-    if (hit) {
-      visit.brand = hit.brand || visit.brand;
-      visit.model = displayName(hit.brand, hit.name);
-    } else if (visit.brand && !visit.model_code.toLowerCase().startsWith(visit.brand.toLowerCase())) {
-      visit.model = `${visit.brand} ${visit.model_code}`;
-    }
-  }
-
-  private findModel(code: string, codename: string): { brand: string; name: string } | null {
-    const candidates = [code, code.split('/')[0], code.replace(/\s*\(.*\)$/, '')].filter((c, i, a) => c && a.indexOf(c) === i);
-    for (const c of candidates) {
-      const rows = this.sql.exec<{ brand: string; name: string; device: string }>('SELECT brand, name, device FROM models WHERE model = ?', c.trim()).toArray();
-      if (!rows.length) continue;
-      const byDevice = codename ? rows.find((r) => r.device.toLowerCase() === codename.toLowerCase()) : undefined;
-      // Shared model codes (e.g. Motorola) list several names; prefer the one equal to the code.
-      const best = byDevice ?? rows.find((r) => r.name.toLowerCase() === c.toLowerCase()) ?? rows.find((r) => r.name) ?? rows[0];
-      return { brand: best.brand, name: best.name || c };
-    }
-    return null;
-  }
-
-  async lookup(model: string, device: string) {
-    await this.ensureCatalog();
-    return { model, device, result: this.findModel(model, device), catalog: this.catalogInfo() };
-  }
-
-  private catalogInfo() {
-    return { rows: this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM models').one().n, updated: Number(this.getMeta('catalog_updated') ?? 0) || null };
-  }
-
-  // Loads the catalog if missing; refreshes it in the background when stale.
-  private async ensureCatalog() {
-    const { rows, updated } = this.catalogInfo();
-    if (rows && updated && Date.now() - updated < CATALOG_MAX_AGE_MS) return;
-    if (!rows) await this.importCatalog();
-    else this.importCatalog().catch((err) => console.error('catalog refresh failed', err));
-  }
-
-  async importCatalog() {
-    this.catalogImport ??= (async () => {
-      try {
-        const res = await fetch(CATALOG_URL);
-        if (!res.ok) throw new Error(`catalog HTTP ${res.status}`);
-        const rows = parseCatalog(await res.arrayBuffer());
-        if (rows.length < 10_000) throw new Error(`catalog too small: ${rows.length} rows`);
-        this.ctx.storage.transactionSync(() => {
-          this.sql.exec('DELETE FROM models');
-          for (const [brand, name, device, model] of rows) this.sql.exec('INSERT INTO models (model, device, brand, name) VALUES (?, ?, ?, ?)', model, device, brand, name);
-          this.setMeta('catalog_updated', String(Date.now()));
-        });
-        return { ok: true, rows: rows.length };
-      } finally {
-        this.catalogImport = null;
-      }
-    })();
-    return this.catalogImport;
   }
 
   // ---- alerts (durable outbox, retried until Discord accepts) -------------------
@@ -373,7 +347,7 @@ export class Dashboard extends DurableObject<Env> {
       messageId: this.getMeta('message_id'),
       outbox: this.sql.exec('SELECT id, attempts, next_at, last_error FROM outbox').toArray(),
       lastAlert: JSON.parse(this.getMeta('last_alert') ?? 'null'),
-      catalog: this.catalogInfo(),
+      catalogModels: catalogSize(),
       alarm: await this.ctx.storage.getAlarm(),
       dashDue: Number(this.getMeta('dash_due') ?? 0) || null,
     };

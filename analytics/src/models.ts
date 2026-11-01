@@ -1,28 +1,38 @@
 // Android model code -> brand + marketing name, using Google Play's supported
-// devices catalog (~54k rows, every brand that ships Google Play). The
-// Dashboard Durable Object stores it in SQLite and refreshes it weekly.
+// devices catalog (~54k rows, every brand that ships Google Play). The catalog
+// is downloaded at build time (scripts/build-catalog.mjs) and bundled, so
+// lookups need no storage and every deploy ships a fresh copy.
+import catalog from './generated/catalog.json';
 
-export const CATALOG_URL = 'https://storage.googleapis.com/play_public/supported_devices.csv';
-export const CATALOG_MAX_AGE_MS = 7 * 86_400_000;
+const CATALOG = catalog as Record<string, string>;
 
 export interface ModelName {
   brand: string;
   name: string;
 }
 
-// Parses the catalog (UTF-16LE CSV: "Retail Branding","Marketing Name","Device","Model").
-export function parseCatalog(buf: ArrayBuffer): [string, string, string, string][] {
-  const text = new TextDecoder('utf-16le').decode(buf).replace(/^﻿/, '');
-  const rows: [string, string, string, string][] = [];
-  const field = /"((?:[^"]|"")*)"/g;
-  for (const line of text.split(/\r?\n/)) {
-    if (!line.startsWith('"')) continue; // header / blank
-    const cols = [...line.matchAll(field)].map((m) => m[1].replace(/""/g, '"').trim());
-    if (cols.length !== 4 || !cols[3]) continue;
-    rows.push([cols[0], cols[1], cols[2], cols[3]]);
+export function lookupModel(code: string, codename = ''): ModelName | null {
+  const candidates = [code, code.split('/')[0], code.replace(/\s*\(.*\)$/, '')].map((c) => c.trim().toLowerCase()).filter((c, i, a) => c && a.indexOf(c) === i);
+  for (const c of candidates) {
+    const value = CATALOG[c];
+    if (!value) continue;
+    const entries = value.split('\u0002').map((e) => {
+      const [brand, name, device = ''] = e.split('\u0001');
+      return { brand, name, device };
+    });
+    // Shared model codes (e.g. Motorola) list several phones; the codename
+    // picks the right one, else prefer the name equal to the code.
+    const best =
+      (codename && entries.find((e) => e.device.toLowerCase() === codename.toLowerCase())) ||
+      entries.find((e) => e.name.toLowerCase() === c) ||
+      entries.find((e) => e.name) ||
+      entries[0];
+    return { brand: best.brand, name: best.name || code };
   }
-  return rows;
+  return null;
 }
+
+export const catalogSize = () => Object.keys(CATALOG).length;
 
 // Brand guesses for codes missing from the catalog (no Play Services, very new
 // devices). Prefix conventions per manufacturer.

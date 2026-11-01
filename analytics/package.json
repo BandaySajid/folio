@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "node scripts/build-catalog.mjs && tsc --noEmit",
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "npm run build && wrangler deploy",
     "typecheck": "tsc --noEmit",
     "demo": "node --experimental-strip-types scripts/demo.ts"
   },
