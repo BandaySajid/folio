@@ -1,0 +1,16 @@
+{
+  "name": "folio-analytics",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "demo": "node --experimental-strip-types scripts/demo.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261101.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.156.0"
+  }
+}

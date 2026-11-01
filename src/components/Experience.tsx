@@ -3,6 +3,16 @@ import { motion } from 'framer-motion';
 const experiences = [
   {
     title: "Software Engineer",
+    company: "EnableNow Technologies",
+    location: "Srinagar, J&K",
+    year: "2026-Present",
+    desc: [
+      "Working across core backend technologies, building and maintaining the services that power the platform",
+      "Designing APIs, data models, and service integrations with a focus on reliability and performance"
+    ]
+  },
+  {
+    title: "Software Engineer",
     company: "Handicraft Youth Foundation",
     location: "Srinagar",
     year: "2025-2026",

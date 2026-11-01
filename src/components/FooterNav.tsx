@@ -1,4 +1,4 @@
-import { EnvelopeSimple, GithubLogo, XLogo } from '@phosphor-icons/react';
+import { EnvelopeSimple, GithubLogo, LinkedinLogo, XLogo } from '@phosphor-icons/react';
 
 export function FooterNav() {
   return (
@@ -19,6 +19,15 @@ export function FooterNav() {
           className="flex items-center justify-center w-12 h-12 text-zinc-500 hover:text-accent hover:bg-zinc-900 rounded-lg transition-colors"
         >
           <GithubLogo size={24} weight="regular" />
+        </a>
+        <a 
+          href="https://www.linkedin.com/in/sajidbandayy/" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          aria-label="LinkedIn"
+          className="flex items-center justify-center w-12 h-12 text-zinc-500 hover:text-accent hover:bg-zinc-900 rounded-lg transition-colors"
+        >
+          <LinkedinLogo size={24} weight="regular" />
         </a>
         <a 
           href="https://x.com/sajidbandayy" 

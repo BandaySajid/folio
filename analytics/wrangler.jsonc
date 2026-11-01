@@ -1,0 +1,26 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "folio-analytics",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  // Only the beacon path is routed to this Worker; everything else on the
+  // domain keeps going straight to the Pages project.
+  "routes": [
+    { "pattern": "sajidbanday.me/_a/*", "zone_name": "sajidbanday.me" },
+    { "pattern": "www.sajidbanday.me/_a/*", "zone_name": "sajidbanday.me" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "DASHBOARD", "class_name": "Dashboard" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Dashboard"] }],
+  "vars": {
+    "ALLOWED_HOSTS": "sajidbanday.me,www.sajidbanday.me",
+    "SITE_NAME": "sajidbanday.me",
+    "TIMEZONE_OFFSET_MINUTES": "330"
+  },
+  "observability": { "enabled": true }
+  // Secrets (set with `wrangler secret put`):
+  //   DISCORD_WEBHOOK_URL  webhook the dashboard message is posted to
+  //   ADMIN_TOKEN          bearer token for /_a/admin/* endpoints
+}
