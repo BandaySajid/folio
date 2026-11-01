@@ -47,7 +47,7 @@ export async function sendPageView() {
     url: location.href,
     referrer: document.referrer,
     path: location.pathname,
-    screen: { w: screen.width, h: screen.height, dpr: devicePixelRatio },
+    screen: { w: screen.width, h: screen.height, dpr: devicePixelRatio, touch: navigator.maxTouchPoints },
     hints: await clientHints(),
     ...visitorId(),
   });

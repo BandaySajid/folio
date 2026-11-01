@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { classify, parseUA } from './classify';
 import { detectPhone, type ClientHints, type Screen } from './devices';
+import { brandFallback, CATALOG_MAX_AGE_MS, CATALOG_URL, displayName, parseCatalog } from './models';
 import { fitDiscordLimits, render, renderAlert, type Totals, type Visit } from './render';
 
 export interface Env {
@@ -27,10 +28,34 @@ const DAY = 86_400_000;
 const RETENTION_DAYS = 400;
 const UPDATE_DEBOUNCE_MS = 4_000;
 const MAX_BODY = 4_096;
-// One alert per visitor per source within this window, so refreshes don't spam.
-const ALERT_COOLDOWN_MS = 30 * 60_000;
+// Same visitor + source within this window is a double-fire, not a new visit to alert on.
+const ALERT_DEDUPE_MS = 15_000;
+const OUTBOX_MAX_ATTEMPTS = 12;
+
+// Networks of crawlers and link scanners that run JavaScript (Meta's link
+// checker, Google, Microsoft, cloud hosts). Residential and mobile networks,
+// and iCloud Private Relay / WARP egress (Akamai, Fastly, Cloudflare), are not here.
+const DATACENTER_ASNS = new Set([
+  32934, // Meta
+  15169, 396982, 19527, // Google
+  8075, 8068, 8069, // Microsoft
+  16509, 14618, // Amazon AWS
+  14061, // DigitalOcean
+  24940, // Hetzner
+  16276, // OVH
+  63949, // Linode
+  20473, // Vultr
+  45102, 37963, // Alibaba
+  132203, 45090, // Tencent
+  31898, // Oracle Cloud
+  12876, // Scaleway
+  51167, // Contabo
+  9009, // M247
+  212238, // Datacamp / CDN77
+]);
 
 const s = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : '');
+const num = (v: unknown, max: number) => (typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= max ? v : undefined);
 
 export default {
   async fetch(request, env, ctx): Promise<Response> {
@@ -40,13 +65,18 @@ export default {
     if (url.pathname === '/_a/v' && request.method === 'POST') {
       const hosts = env.ALLOWED_HOSTS.split(',');
       const origin = request.headers.get('Origin');
-      if (origin && !hosts.includes(new URL(origin).hostname)) return new Response(null, { status: 403 });
+      try {
+        if (origin && !hosts.includes(new URL(origin).hostname)) return new Response(null, { status: 403 });
+      } catch {
+        return new Response(null, { status: 403 });
+      }
 
       const raw = await request.text();
       if (raw.length > MAX_BODY) return new Response(null, { status: 413 });
       let body: Beacon;
       try {
         body = JSON.parse(raw);
+        if (!body || typeof body !== 'object') throw new Error('not an object');
       } catch {
         return new Response(null, { status: 400 });
       }
@@ -54,15 +84,16 @@ export default {
       const ua = request.headers.get('User-Agent') ?? '';
       const pageUrl = s(body.url, 1024);
       // document.referrer from the page; the request's own Referer is always our site.
-      const referrer = s(body.referrer, 512) || '';
+      const referrer = s(body.referrer, 512);
       const attribution = classify(pageUrl, referrer, ua, hosts);
       const device = parseUA(ua);
-      const hints: ClientHints = typeof body.hints === 'object' && body.hints ? { model: s(body.hints.model, 60), platform: s(body.hints.platform, 20), platformVersion: s(body.hints.platformVersion, 20) } : {};
+      const h = typeof body.hints === 'object' && body.hints ? body.hints : {};
+      const hints: ClientHints = { model: s(h.model, 60), platform: s(h.platform, 20), platformVersion: s(h.platformVersion, 20) };
       const scr = typeof body.screen === 'object' && body.screen ? body.screen : {};
-      const num = (v: unknown, max: number) => (typeof v === 'number' && v > 0 && v <= max ? v : undefined);
-      const screen: Screen = { w: num(scr.w, 10000), h: num(scr.h, 10000), dpr: num(scr.dpr, 10) };
+      const screen: Screen = { w: num(scr.w, 10000), h: num(scr.h, 10000), dpr: num(scr.dpr, 10), touch: num(scr.touch, 100) };
       const phone = detectPhone(ua, hints, screen);
       const cf = (request.cf ?? {}) as IncomingRequestCfProperties;
+      const asn = typeof cf.asn === 'number' ? cf.asn : null;
       const vid = /^[\w-]{8,64}$/.test(body.vid ?? '') ? body.vid! : await fallbackVisitorId(request, ua);
 
       const visit: Visit = {
@@ -78,20 +109,25 @@ export default {
         country: (cf.country as string) ?? '',
         city: (cf.city as string) ?? '',
         region: (cf.region as string) ?? '',
-        device: device.device,
+        device: phone.os === 'iPadOS' ? 'Tablet' : device.device,
         os: phone.os || device.os,
         os_version: phone.osVersion,
-        brand: phone.brand,
+        brand: phone.manufacturer === 'apple' ? 'Apple' : brandFallback(phone.manufacturer, phone.modelCode),
         model: phone.model,
         model_code: phone.modelCode,
         model_exact: phone.exact ? 1 : 0,
-        screen: screen.w && screen.h ? `${screen.w}x${screen.h}@${screen.dpr ?? 1}` : '',
+        codename: phone.codename,
+        screen: screen.w && screen.h ? `${screen.w}x${screen.h}@${Math.round((screen.dpr ?? 1) * 100) / 100}` : '',
         browser: device.browser,
         referrer: referrer.slice(0, 200),
         path: s(body.path, 200) || '/',
+        asn,
+        as_org: s(cf.asOrganization, 80),
+        ua: ua.slice(0, 400),
       };
 
-      ctx.waitUntil(stub.record(visit, device.bot || attribution.category === 'Internal'));
+      const isBot = device.bot || attribution.category === 'Internal' || (asn !== null && DATACENTER_ASNS.has(asn));
+      ctx.waitUntil(stub.record(visit, isBot));
       return new Response(null, { status: 204 });
     }
 
@@ -102,7 +138,10 @@ export default {
       if (action === 'refresh') return Response.json(await stub.refresh());
       if (action === 'reset') return Response.json(await stub.reset(url.searchParams.get('message') === 'new'));
       if (action === 'stats') return Response.json(await stub.stats());
+      if (action === 'recent') return Response.json(await stub.recent(Number(url.searchParams.get('n')) || 20));
       if (action === 'forget') return Response.json(await stub.forget(url.searchParams.get('vid') ?? ''));
+      if (action === 'import-models') return Response.json(await stub.importCatalog());
+      if (action === 'lookup') return Response.json(await stub.lookup(url.searchParams.get('model') ?? '', url.searchParams.get('device') ?? ''));
       return new Response('not found', { status: 404 });
     }
 
@@ -122,6 +161,7 @@ async function fallbackVisitorId(request: Request, ua: string) {
 export class Dashboard extends DurableObject<Env> {
   private sql: SqlStorage;
   private recentHits = new Map<string, number[]>();
+  private catalogImport: Promise<{ ok: boolean; rows: number }> | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -136,69 +176,214 @@ export class Dashboard extends DurableObject<Env> {
       CREATE TABLE IF NOT EXISTS bots (ts INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
       CREATE TABLE IF NOT EXISTS alerts (vid TEXT NOT NULL, source TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (vid, source));
+      CREATE TABLE IF NOT EXISTS outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, body TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_at INTEGER NOT NULL, last_error TEXT);
+      CREATE TABLE IF NOT EXISTS models (model TEXT NOT NULL COLLATE NOCASE, device TEXT COLLATE NOCASE, brand TEXT, name TEXT);
+      CREATE INDEX IF NOT EXISTS models_model ON models(model);
     `);
     // Columns added after the first release.
     const existing = new Set(this.sql.exec<{ name: string }>('PRAGMA table_info(visits)').toArray().map((c) => c.name));
-    for (const [col, type] of [['os_version', 'TEXT'], ['brand', 'TEXT'], ['model', 'TEXT'], ['model_code', 'TEXT'], ['model_exact', 'INTEGER'], ['screen', 'TEXT']]) {
-      if (!existing.has(col)) this.sql.exec(`ALTER TABLE visits ADD COLUMN ${col} ${type}`);
-    }
+    const added: [string, string][] = [
+      ['os_version', 'TEXT'], ['brand', 'TEXT'], ['model', 'TEXT'], ['model_code', 'TEXT'], ['model_exact', 'INTEGER'],
+      ['screen', 'TEXT'], ['codename', 'TEXT'], ['asn', 'INTEGER'], ['as_org', 'TEXT'], ['ua', 'TEXT'],
+    ];
+    for (const [col, type] of added) if (!existing.has(col)) this.sql.exec(`ALTER TABLE visits ADD COLUMN ${col} ${type}`);
   }
+
+  // ---- recording -------------------------------------------------------------
 
   async record(visit: Visit, isBot: boolean) {
     if (isBot) {
       this.sql.exec('INSERT INTO bots (ts) VALUES (?)', visit.ts);
-    } else {
-      // Ignore floods: max 10 hits per visitor per minute.
-      const hits = (this.recentHits.get(visit.vid) ?? []).filter((t) => t > visit.ts - 60_000);
-      if (hits.length >= 10) return;
-      hits.push(visit.ts);
-      this.recentHits.set(visit.vid, hits);
-      if (this.recentHits.size > 5000) this.recentHits.clear();
-
-      const cols = Object.keys(visit);
-      this.sql.exec(`INSERT INTO visits (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`, ...Object.values(visit));
-      await this.maybeAlert(visit);
+      return;
     }
-    if ((await this.ctx.storage.getAlarm()) === null) {
-      await this.ctx.storage.setAlarm(Date.now() + UPDATE_DEBOUNCE_MS);
+    // Ignore floods: max 10 hits per visitor per minute.
+    const hits = (this.recentHits.get(visit.vid) ?? []).filter((t) => t > visit.ts - 60_000);
+    if (hits.length >= 10) return;
+    hits.push(visit.ts);
+    this.recentHits.set(visit.vid, hits);
+    if (this.recentHits.size > 5000) this.recentHits.clear();
+
+    await this.resolveModel(visit);
+
+    const cols = Object.keys(visit);
+    this.sql.exec(`INSERT INTO visits (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`, ...Object.values(visit));
+
+    this.queueAlert(visit);
+    if (!this.getMeta('dash_due')) this.setMeta('dash_due', String(Date.now() + UPDATE_DEBOUNCE_MS));
+    await this.schedule();
+  }
+
+  // Android model code -> "Samsung Galaxy S23 Ultra" via the Play catalog.
+  private async resolveModel(visit: Visit) {
+    if ((visit.os !== 'Android' && visit.os !== 'HarmonyOS') || !visit.model_code) return;
+    try {
+      await this.ensureCatalog();
+    } catch (err) {
+      console.error('catalog unavailable', err);
+    }
+    const hit = this.findModel(visit.model_code, visit.codename ?? '');
+    if (hit) {
+      visit.brand = hit.brand || visit.brand;
+      visit.model = displayName(hit.brand, hit.name);
+    } else if (visit.brand && !visit.model_code.toLowerCase().startsWith(visit.brand.toLowerCase())) {
+      visit.model = `${visit.brand} ${visit.model_code}`;
     }
   }
 
-  private async maybeAlert(visit: Visit) {
+  private findModel(code: string, codename: string): { brand: string; name: string } | null {
+    const candidates = [code, code.split('/')[0], code.replace(/\s*\(.*\)$/, '')].filter((c, i, a) => c && a.indexOf(c) === i);
+    for (const c of candidates) {
+      const rows = this.sql.exec<{ brand: string; name: string; device: string }>('SELECT brand, name, device FROM models WHERE model = ?', c.trim()).toArray();
+      if (!rows.length) continue;
+      const byDevice = codename ? rows.find((r) => r.device.toLowerCase() === codename.toLowerCase()) : undefined;
+      // Shared model codes (e.g. Motorola) list several names; prefer the one equal to the code.
+      const best = byDevice ?? rows.find((r) => r.name.toLowerCase() === c.toLowerCase()) ?? rows.find((r) => r.name) ?? rows[0];
+      return { brand: best.brand, name: best.name || c };
+    }
+    return null;
+  }
+
+  async lookup(model: string, device: string) {
+    await this.ensureCatalog();
+    return { model, device, result: this.findModel(model, device), catalog: this.catalogInfo() };
+  }
+
+  private catalogInfo() {
+    return { rows: this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM models').one().n, updated: Number(this.getMeta('catalog_updated') ?? 0) || null };
+  }
+
+  // Loads the catalog if missing; refreshes it in the background when stale.
+  private async ensureCatalog() {
+    const { rows, updated } = this.catalogInfo();
+    if (rows && updated && Date.now() - updated < CATALOG_MAX_AGE_MS) return;
+    if (!rows) await this.importCatalog();
+    else this.importCatalog().catch((err) => console.error('catalog refresh failed', err));
+  }
+
+  async importCatalog() {
+    this.catalogImport ??= (async () => {
+      try {
+        const res = await fetch(CATALOG_URL);
+        if (!res.ok) throw new Error(`catalog HTTP ${res.status}`);
+        const rows = parseCatalog(await res.arrayBuffer());
+        if (rows.length < 10_000) throw new Error(`catalog too small: ${rows.length} rows`);
+        this.ctx.storage.transactionSync(() => {
+          this.sql.exec('DELETE FROM models');
+          for (const [brand, name, device, model] of rows) this.sql.exec('INSERT INTO models (model, device, brand, name) VALUES (?, ?, ?, ?)', model, device, brand, name);
+          this.setMeta('catalog_updated', String(Date.now()));
+        });
+        return { ok: true, rows: rows.length };
+      } finally {
+        this.catalogImport = null;
+      }
+    })();
+    return this.catalogImport;
+  }
+
+  // ---- alerts (durable outbox, retried until Discord accepts) -------------------
+
+  private queueAlert(visit: Visit) {
     const sources = this.env.NOTIFY_SOURCES.split(',').map((x) => x.trim().toLowerCase());
     if (!sources.includes(visit.source.toLowerCase()) && !sources.includes('*')) return;
     const prev = this.sql.exec<{ ts: number }>('SELECT ts FROM alerts WHERE vid = ? AND source = ?', visit.vid, visit.source).toArray()[0];
-    if (prev && prev.ts > visit.ts - ALERT_COOLDOWN_MS) return;
+    if (prev && prev.ts > visit.ts - ALERT_DEDUPE_MS) return;
     this.sql.exec('INSERT INTO alerts (vid, source, ts) VALUES (?, ?, ?) ON CONFLICT(vid, source) DO UPDATE SET ts = excluded.ts', visit.vid, visit.source, visit.ts);
 
     const tz = (Number(this.env.TIMEZONE_OFFSET_MINUTES) || 0) * 60_000;
     const todayStart = Math.floor((visit.ts + tz) / DAY) * DAY - tz;
     const today = this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM visits WHERE ts >= ?', todayStart).one().n;
-    const body = JSON.stringify(renderAlert(visit, { siteName: this.env.SITE_NAME }, today));
+    const mine = this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM visits WHERE vid = ?', visit.vid).one().n;
+    const body = JSON.stringify(renderAlert(visit, { siteName: this.env.SITE_NAME }, today, mine));
+    this.sql.exec('INSERT INTO outbox (body, next_at) VALUES (?, ?)', body, Date.now());
+  }
+
+  private async flushOutbox() {
     const webhook = this.env.DISCORD_WEBHOOK_URL.replace(/\/$/, '');
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const res = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
-      if (res.status !== 429) {
-        if (!res.ok) console.error('discord alert error', res.status, await res.text());
-        return;
+    const due = this.sql.exec<{ id: number; body: string; attempts: number }>('SELECT id, body, attempts FROM outbox WHERE next_at <= ? ORDER BY id LIMIT 10', Date.now()).toArray();
+    for (const item of due) {
+      let error = '';
+      let retryMs = 0;
+      try {
+        const res = await fetch(`${webhook}?wait=true`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: item.body });
+        if (res.ok) {
+          this.sql.exec('DELETE FROM outbox WHERE id = ?', item.id);
+          this.setMeta('last_alert', JSON.stringify({ at: Date.now(), status: res.status }));
+          continue;
+        }
+        error = `${res.status} ${(await res.text()).slice(0, 300)}`;
+        if (res.status === 429) {
+          retryMs = (Number(res.headers.get('Retry-After')) || 2) * 1000 + 250;
+        } else if (res.status >= 400 && res.status < 500) {
+          // Discord rejected the payload itself; retrying won't help.
+          console.error('alert rejected', error);
+          this.sql.exec('DELETE FROM outbox WHERE id = ?', item.id);
+          this.setMeta('last_alert', JSON.stringify({ at: Date.now(), status: res.status, error }));
+          continue;
+        }
+      } catch (err) {
+        error = String(err);
       }
-      const wait = await res.json<{ retry_after?: number }>().catch(() => ({ retry_after: 2 }));
-      await new Promise((r) => setTimeout(r, Math.ceil((wait.retry_after ?? 2) * 1000) + 250));
+      const attempts = item.attempts + 1;
+      if (attempts >= OUTBOX_MAX_ATTEMPTS) {
+        console.error('alert dropped after retries', error);
+        this.sql.exec('DELETE FROM outbox WHERE id = ?', item.id);
+        continue;
+      }
+      const backoff = retryMs || Math.min(60 * 60_000, 2_000 * 2 ** attempts);
+      this.sql.exec('UPDATE outbox SET attempts = ?, next_at = ?, last_error = ? WHERE id = ?', attempts, Date.now() + backoff, error, item.id);
+      if (retryMs) break; // rate limited: stop this round
     }
   }
 
-  async alarm() {
-    const result = await this.publish();
-    if (result.retryAfterMs) await this.ctx.storage.setAlarm(Date.now() + result.retryAfterMs);
+  // ---- scheduling --------------------------------------------------------------
+
+  private async schedule() {
+    const nextOutbox = this.sql.exec<{ t: number | null }>('SELECT MIN(next_at) AS t FROM outbox').one().t;
+    const dashDue = Number(this.getMeta('dash_due') ?? 0) || Infinity;
+    const target = Math.min(nextOutbox ?? Infinity, dashDue);
+    if (!Number.isFinite(target)) return;
+    const current = await this.ctx.storage.getAlarm();
+    // Inside alarm() the running alarm can still be reported; treat past times as unset.
+    if (current === null || current <= Date.now() || target < current) await this.ctx.storage.setAlarm(Math.max(target, Date.now()));
   }
+
+  async alarm() {
+    try {
+      await this.flushOutbox();
+      const dashDue = Number(this.getMeta('dash_due') ?? 0);
+      if (dashDue && dashDue <= Date.now()) {
+        const result = await this.publish();
+        if (result.retryAfterMs) this.setMeta('dash_due', String(Date.now() + result.retryAfterMs));
+        else this.sql.exec(`DELETE FROM meta WHERE k = 'dash_due'`);
+      }
+    } finally {
+      await this.schedule();
+    }
+  }
+
+  // ---- admin ---------------------------------------------------------------------
 
   async refresh() {
     return this.publish();
   }
 
   async stats() {
-    const now = Date.now();
-    return { totals: this.totals(now), messageId: this.getMeta('message_id') };
+    return {
+      totals: this.totals(Date.now()),
+      messageId: this.getMeta('message_id'),
+      outbox: this.sql.exec('SELECT id, attempts, next_at, last_error FROM outbox').toArray(),
+      lastAlert: JSON.parse(this.getMeta('last_alert') ?? 'null'),
+      catalog: this.catalogInfo(),
+      alarm: await this.ctx.storage.getAlarm(),
+      dashDue: Number(this.getMeta('dash_due') ?? 0) || null,
+    };
+  }
+
+  async recent(n: number) {
+    return {
+      visits: this.sql.exec('SELECT * FROM visits ORDER BY ts DESC LIMIT ?', Math.min(n, 200)).toArray(),
+      alerts: this.sql.exec('SELECT * FROM alerts ORDER BY ts DESC LIMIT 20').toArray(),
+    };
   }
 
   // Remove one visitor's rows (e.g. your own test visits) and refresh.
@@ -213,6 +398,8 @@ export class Dashboard extends DurableObject<Env> {
     if (newMessage) this.sql.exec(`DELETE FROM meta WHERE k = 'message_id'`);
     return this.publish();
   }
+
+  // ---- dashboard -------------------------------------------------------------------
 
   private getMeta(k: string): string | null {
     const row = this.sql.exec<{ v: string }>('SELECT v FROM meta WHERE k = ?', k).toArray()[0];
@@ -233,7 +420,7 @@ export class Dashboard extends DurableObject<Env> {
     const now = Date.now();
     this.sql.exec('DELETE FROM visits WHERE ts < ?', now - RETENTION_DAYS * DAY);
     this.sql.exec('DELETE FROM bots WHERE ts < ?', now - 30 * DAY);
-    this.sql.exec('DELETE FROM alerts WHERE ts < ?', now - ALERT_COOLDOWN_MS);
+    this.sql.exec('DELETE FROM alerts WHERE ts < ?', now - ALERT_DEDUPE_MS);
 
     const visits = this.sql.exec('SELECT * FROM visits WHERE ts >= ? ORDER BY ts DESC', now - 30 * DAY).toArray() as unknown as Visit[];
     const payload = fitDiscordLimits(
@@ -248,21 +435,26 @@ export class Dashboard extends DurableObject<Env> {
     const webhook = this.env.DISCORD_WEBHOOK_URL.replace(/\/$/, '');
     const messageId = this.getMeta('message_id');
     let res: Response;
-    if (messageId) {
-      res = await fetch(`${webhook}/messages/${messageId}`, {
-        method: 'PATCH',
+    try {
+      if (messageId) {
+        res = await fetch(`${webhook}/messages/${messageId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        // Message deleted in Discord: fall through and post a fresh one.
+        if (res.status !== 404) return this.handle(res, messageId);
+        this.sql.exec(`DELETE FROM meta WHERE k = 'message_id'`);
+      }
+      res = await fetch(`${webhook}?wait=true`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      // Message deleted in Discord: fall through and post a fresh one.
-      if (res.status !== 404) return this.handle(res, messageId);
-      this.sql.exec(`DELETE FROM meta WHERE k = 'message_id'`);
+    } catch (err) {
+      console.error('discord unreachable', err);
+      return { ok: false, messageId, retryAfterMs: 30_000 };
     }
-    res = await fetch(`${webhook}?wait=true`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
     if (res.ok) {
       const msg = await res.clone().json<{ id: string }>();
       this.setMeta('message_id', msg.id);
@@ -273,8 +465,8 @@ export class Dashboard extends DurableObject<Env> {
 
   private async handle(res: Response, messageId: string | null) {
     if (res.status === 429) {
-      const body = await res.json<{ retry_after?: number }>().catch(() => ({ retry_after: 5 }));
-      return { ok: false, status: 429, messageId, retryAfterMs: Math.ceil((body.retry_after ?? 5) * 1000) + 250 };
+      const retryAfter = Number(res.headers.get('Retry-After')) || 5;
+      return { ok: false, status: 429, messageId, retryAfterMs: retryAfter * 1000 + 250 };
     }
     if (!res.ok) {
       console.error('discord error', res.status, await res.text());

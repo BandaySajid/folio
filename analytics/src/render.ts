@@ -22,6 +22,10 @@ export interface Visit {
   model_code: string | null;
   model_exact: number | null;
   screen: string | null;
+  codename: string | null;
+  asn: number | null;
+  as_org: string | null;
+  ua: string | null;
   browser: string;
   referrer: string;
   path: string;
@@ -311,7 +315,7 @@ export function fitDiscordLimits<T extends { embeds: any[] }>(payload: T): T {
 
 // A standalone message for a single visit, posted as a fresh message so
 // Discord sends a push notification (edits to the dashboard don't).
-export function renderAlert(v: Visit, opts: Pick<RenderOptions, 'siteName'>, visitsToday: number) {
+export function renderAlert(v: Visit, opts: Pick<RenderOptions, 'siteName'>, visitsToday: number, visitorVisits: number) {
   const place = [v.city, v.region && v.region !== v.city ? v.region : '', countryName(v.country)].filter(Boolean).join(', ');
   const via = v.in_app ? `${v.in_app} in-app browser` : v.browser;
   return {
@@ -326,17 +330,23 @@ export function renderAlert(v: Visit, opts: Pick<RenderOptions, 'siteName'>, vis
             name: 'Device',
             value: [
               `${osIcon(v.os)} **${v.model || v.device}**${estimated(v) ? ' _(estimated from screen)_' : ''}`,
-              [v.brand, v.model_code && v.model_code !== v.model && !estimated(v) ? `\`${v.model_code}\`` : '', v.screen ? `${v.screen.replace(/@.*/, '')} screen` : ''].filter(Boolean).join(' · '),
+              [
+                v.brand && !(v.model ?? '').toLowerCase().startsWith(v.brand.toLowerCase()) && !/^(iPhone|iPad|Pixel)/.test(v.model ?? '') ? v.brand : '',
+                v.model_code && v.model_code !== v.model && !estimated(v) ? `\`${v.model_code}\`` : '',
+                v.screen ? `${v.screen.replace(/@.*/, '')} screen` : '',
+              ]
+                .filter(Boolean)
+                .join(' · '),
               `${DEVICE_ICON[v.device] ?? ''} ${osLabel(v) || v.os} · ${via}`,
             ]
               .filter(Boolean)
               .join('\n'),
             inline: true,
           },
-          { name: 'Visitor', value: v.return_visit ? '🔁 Returning' : '🆕 First visit', inline: true },
+          { name: 'Visitor', value: visitorVisits > 1 ? `🔁 Visit #${visitorVisits} from this person` : v.return_visit ? '🔁 Returning' : '🆕 First visit', inline: true },
           ...(v.click_ids || v.campaign ? [{ name: 'Signals', value: [v.click_ids && v.click_ids.split(',').map((c) => `\`${c}\``).join(' '), v.campaign && `campaign \`${v.campaign}\``].filter(Boolean).join(' · '), inline: false }] : []),
         ],
-        footer: { text: `Visit #${visitsToday} today` },
+        footer: { text: `Visit #${visitsToday} today${v.as_org ? ` · ${v.as_org}` : ''}` },
         timestamp: new Date(v.ts).toISOString(),
       },
     ],

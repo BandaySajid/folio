@@ -35,7 +35,7 @@ const visits: Visit[] = Array.from({ length: 140 }, (_, i) => {
   const ageMs = i < 3 ? i * 90_000 : Math.random() ** 2 * 30 * 86_400_000;
   return {
     ts: now - ageMs, vid: `v${Math.floor(Math.random() * 90)}`, return_visit: Math.random() < 0.25 ? 1 : 0,
-    campaign: '', referrer: '', path: '/', country, city, region, ...p,
+    campaign: '', referrer: '', path: '/', country, city, region, os_version: null, brand: null, model: null, model_code: null, model_exact: null, screen: null, codename: null, asn: null, as_org: null, ua: null, ...p,
   } as Visit;
 });
 

@@ -4,8 +4,19 @@ A Cloudflare Worker that tracks where visitors to sajidbanday.me come from and k
 
 - The site sends one beacon per page load to `/_a/v` (`src/lib/beacon.ts` in the site). This route is the only path the Worker handles. Everything else on the domain goes straight to Pages.
 - `src/classify.ts` works out the source in this order: your own tags (`?ref=`, `?src=`, `utm_source`), then platform click IDs (`fbclid`, `igsh`, `gclid`, `ttclid`, ...), then the in-app browser user agent (Instagram, Threads, LinkedIn, TikTok, ...), then `document.referrer`. A visit with none of these counts as Direct.
-- Visits from sources listed in `NOTIFY_SOURCES` (default `Instagram`) also post a separate message, so Discord sends a push notification. Each visitor triggers at most one of these per source every 30 minutes.
+- Visits from sources listed in `NOTIFY_SOURCES` (default `Instagram`) also post a separate message, so Discord sends a push notification. Every visit alerts; only a repeat from the same visitor within 15 seconds (a double-fire) is skipped. Alerts go through a durable outbox in SQLite and are retried with backoff until Discord accepts them.
+- Visits from datacenter networks (Meta's link scanner, Google, AWS, and other clouds) are counted as bots, not visitors.
 - A single SQLite-backed Durable Object (`Dashboard`) stores the visits. It waits for a few seconds of quiet, then edits the Discord message. If someone deletes the message, the next update posts a new one.
+
+## Device detection
+
+`src/devices.ts` extracts the phone and OS, and `src/models.ts` names Android models:
+
+- **Instagram / Facebook in-app browsers** report exact hardware: `iPhone18,1`, or `samsung; SM-S918B; dm3q` on Android.
+- **Chromium browsers and WebViews on Android** hide the model in the user agent (`Android 10; K`). The site's beacon reads it from User-Agent Client Hints instead, along with the real Android version.
+- **Android model codes** are named with [Google Play's supported devices catalog](https://storage.googleapis.com/play_public/supported_devices.csv) (~54k devices, every brand that ships Play). The Durable Object stores it in SQLite and refreshes it weekly. The device codename breaks ties when several phones share a code.
+- **iPhones in Safari / Chrome** never expose the model. It is estimated from screen size and pixel ratio, filtered by which models support the reported iOS version. Safari 26+ freezes `OS 18_6` in its user agent, so the iOS version comes from `Version/26.x`.
+- **iPads** in desktop mode claim to be a Mac; touch support gives them away.
 
 ## Tag your links
 
@@ -25,6 +36,9 @@ Add `?ref=<name>` to links you share. Known aliases include `ig`, `li`, `x`, `gh
     curl -X POST https://sajidbanday.me/_a/admin/reset   -H "Authorization: Bearer $ADMIN_TOKEN"   # wipe stats, keep message
     curl -X POST "https://sajidbanday.me/_a/admin/reset?message=new" -H "Authorization: Bearer $ADMIN_TOKEN"
     curl -X POST "https://sajidbanday.me/_a/admin/forget?vid=<visitor id>" -H "Authorization: Bearer $ADMIN_TOKEN"   # drop one visitor's visits
+    curl "https://sajidbanday.me/_a/admin/recent?n=20" -H "Authorization: Bearer $ADMIN_TOKEN"   # latest raw visits
+    curl "https://sajidbanday.me/_a/admin/lookup?model=SM-S918B" -H "Authorization: Bearer $ADMIN_TOKEN"   # test a model code
+    curl -X POST https://sajidbanday.me/_a/admin/import-models -H "Authorization: Bearer $ADMIN_TOKEN"   # reload the device catalog now
     curl https://sajidbanday.me/_a/admin/stats -H "Authorization: Bearer $ADMIN_TOKEN"
 
 ## Preview the layout
