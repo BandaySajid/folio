@@ -281,3 +281,28 @@ export function fitDiscordLimits<T extends { embeds: any[] }>(payload: T): T {
   }
   return payload;
 }
+
+// A standalone message for a single visit, posted as a fresh message so
+// Discord sends a push notification (edits to the dashboard don't).
+export function renderAlert(v: Visit, opts: Pick<RenderOptions, 'siteName'>, visitsToday: number) {
+  const place = [v.city, v.region && v.region !== v.city ? v.region : '', countryName(v.country)].filter(Boolean).join(', ');
+  const via = v.in_app ? `${v.in_app} in-app browser` : v.browser;
+  return {
+    username: `${opts.siteName} analytics`,
+    content: `${icon(v.source)} New visit from **${v.source}**${v.detail ? ` (${v.detail})` : ''}`,
+    embeds: [
+      {
+        color: ACCENT,
+        fields: [
+          { name: 'Location', value: `${flag(v.country)} ${place || 'Unknown'}`, inline: true },
+          { name: 'Device', value: `${DEVICE_ICON[v.device] ?? ''} ${v.device} · ${v.os}\n${via}`, inline: true },
+          { name: 'Visitor', value: v.return_visit ? '🔁 Returning' : '🆕 First visit', inline: true },
+          ...(v.click_ids || v.campaign ? [{ name: 'Signals', value: [v.click_ids && v.click_ids.split(',').map((c) => `\`${c}\``).join(' '), v.campaign && `campaign \`${v.campaign}\``].filter(Boolean).join(' · '), inline: false }] : []),
+        ],
+        footer: { text: `Visit #${visitsToday} today` },
+        timestamp: new Date(v.ts).toISOString(),
+      },
+    ],
+    allowed_mentions: { parse: [] as string[] },
+  };
+}

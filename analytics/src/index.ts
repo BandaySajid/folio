@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { classify, parseUA } from './classify';
-import { fitDiscordLimits, render, type Totals, type Visit } from './render';
+import { fitDiscordLimits, render, renderAlert, type Totals, type Visit } from './render';
 
 export interface Env {
   DASHBOARD: DurableObjectNamespace<Dashboard>;
@@ -9,6 +9,7 @@ export interface Env {
   ALLOWED_HOSTS: string;
   SITE_NAME: string;
   TIMEZONE_OFFSET_MINUTES: string;
+  NOTIFY_SOURCES: string;
 }
 
 interface Beacon {
@@ -23,6 +24,8 @@ const DAY = 86_400_000;
 const RETENTION_DAYS = 400;
 const UPDATE_DEBOUNCE_MS = 4_000;
 const MAX_BODY = 4_096;
+// One alert per visitor per source within this window, so refreshes don't spam.
+const ALERT_COOLDOWN_MS = 30 * 60_000;
 
 const s = (v: unknown, n: number) => (typeof v === 'string' ? v.slice(0, n) : '');
 
@@ -85,6 +88,7 @@ export default {
       if (action === 'refresh') return Response.json(await stub.refresh());
       if (action === 'reset') return Response.json(await stub.reset(url.searchParams.get('message') === 'new'));
       if (action === 'stats') return Response.json(await stub.stats());
+      if (action === 'forget') return Response.json(await stub.forget(url.searchParams.get('vid') ?? ''));
       return new Response('not found', { status: 404 });
     }
 
@@ -117,6 +121,7 @@ export class Dashboard extends DurableObject<Env> {
       CREATE INDEX IF NOT EXISTS visits_ts ON visits(ts);
       CREATE TABLE IF NOT EXISTS bots (ts INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
+      CREATE TABLE IF NOT EXISTS alerts (vid TEXT NOT NULL, source TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (vid, source));
     `);
   }
 
@@ -133,9 +138,33 @@ export class Dashboard extends DurableObject<Env> {
 
       const cols = Object.keys(visit);
       this.sql.exec(`INSERT INTO visits (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`, ...Object.values(visit));
+      await this.maybeAlert(visit);
     }
     if ((await this.ctx.storage.getAlarm()) === null) {
       await this.ctx.storage.setAlarm(Date.now() + UPDATE_DEBOUNCE_MS);
+    }
+  }
+
+  private async maybeAlert(visit: Visit) {
+    const sources = this.env.NOTIFY_SOURCES.split(',').map((x) => x.trim().toLowerCase());
+    if (!sources.includes(visit.source.toLowerCase()) && !sources.includes('*')) return;
+    const prev = this.sql.exec<{ ts: number }>('SELECT ts FROM alerts WHERE vid = ? AND source = ?', visit.vid, visit.source).toArray()[0];
+    if (prev && prev.ts > visit.ts - ALERT_COOLDOWN_MS) return;
+    this.sql.exec('INSERT INTO alerts (vid, source, ts) VALUES (?, ?, ?) ON CONFLICT(vid, source) DO UPDATE SET ts = excluded.ts', visit.vid, visit.source, visit.ts);
+
+    const tz = (Number(this.env.TIMEZONE_OFFSET_MINUTES) || 0) * 60_000;
+    const todayStart = Math.floor((visit.ts + tz) / DAY) * DAY - tz;
+    const today = this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM visits WHERE ts >= ?', todayStart).one().n;
+    const body = JSON.stringify(renderAlert(visit, { siteName: this.env.SITE_NAME }, today));
+    const webhook = this.env.DISCORD_WEBHOOK_URL.replace(/\/$/, '');
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const res = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      if (res.status !== 429) {
+        if (!res.ok) console.error('discord alert error', res.status, await res.text());
+        return;
+      }
+      const wait = await res.json<{ retry_after?: number }>().catch(() => ({ retry_after: 2 }));
+      await new Promise((r) => setTimeout(r, Math.ceil((wait.retry_after ?? 2) * 1000) + 250));
     }
   }
 
@@ -153,8 +182,15 @@ export class Dashboard extends DurableObject<Env> {
     return { totals: this.totals(now), messageId: this.getMeta('message_id') };
   }
 
+  // Remove one visitor's rows (e.g. your own test visits) and refresh.
+  async forget(vid: string) {
+    this.sql.exec('DELETE FROM visits WHERE vid = ?', vid);
+    this.sql.exec('DELETE FROM alerts WHERE vid = ?', vid);
+    return this.publish();
+  }
+
   async reset(newMessage: boolean) {
-    this.sql.exec('DELETE FROM visits; DELETE FROM bots;');
+    this.sql.exec('DELETE FROM visits; DELETE FROM bots; DELETE FROM alerts;');
     if (newMessage) this.sql.exec(`DELETE FROM meta WHERE k = 'message_id'`);
     return this.publish();
   }
@@ -178,6 +214,7 @@ export class Dashboard extends DurableObject<Env> {
     const now = Date.now();
     this.sql.exec('DELETE FROM visits WHERE ts < ?', now - RETENTION_DAYS * DAY);
     this.sql.exec('DELETE FROM bots WHERE ts < ?', now - 30 * DAY);
+    this.sql.exec('DELETE FROM alerts WHERE ts < ?', now - ALERT_COOLDOWN_MS);
 
     const visits = this.sql.exec('SELECT * FROM visits WHERE ts >= ? ORDER BY ts DESC', now - 30 * DAY).toArray() as unknown as Visit[];
     const payload = fitDiscordLimits(

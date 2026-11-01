@@ -17,7 +17,9 @@
   "vars": {
     "ALLOWED_HOSTS": "sajidbanday.me,www.sajidbanday.me",
     "SITE_NAME": "sajidbanday.me",
-    "TIMEZONE_OFFSET_MINUTES": "330"
+    "TIMEZONE_OFFSET_MINUTES": "330",
+    // Sources that also get a separate (notifying) message per visit. "*" = all.
+    "NOTIFY_SOURCES": "Instagram"
   },
   "observability": { "enabled": true }
   // Secrets (set with `wrangler secret put`):
