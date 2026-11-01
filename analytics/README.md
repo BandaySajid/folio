@@ -5,7 +5,7 @@ A Cloudflare Worker that tracks where visitors to sajidbanday.me come from and k
 - The site sends one beacon per page load to `/_a/v` (`src/lib/beacon.ts` in the site). This route is the only path the Worker handles. Everything else on the domain goes straight to Pages.
 - `src/classify.ts` works out the source in this order: your own tags (`?ref=`, `?src=`, `utm_source`), then platform click IDs (`fbclid`, `igsh`, `gclid`, `ttclid`, ...), then the in-app browser user agent (Instagram, Threads, LinkedIn, TikTok, ...), then `document.referrer`. A visit with none of these counts as Direct.
 - Visits from sources listed in `NOTIFY_SOURCES` (default `Instagram`) also post a separate message, so Discord sends a push notification. Every visit alerts; only a repeat from the same visitor within 15 seconds (a double-fire) is skipped. Alerts go through a durable outbox in SQLite and are retried with backoff until Discord accepts them.
-- If the Durable Object is unavailable (outage, free-tier quota), alerts are sent straight from the Worker so they still arrive.
+- If the Durable Object is unavailable (outage, or the free tier's 100k rows written per day), visits are parked in the `VISIT_BUFFER` KV namespace, alerts are sent straight from the Worker, and the Discord dashboard's latest-visits list is patched from the buffer. Once SQLite accepts writes again, the next dashboard update moves the buffered visits into SQLite.
 - Visits from datacenter networks (Meta's link scanner, Google, AWS, and other clouds) are counted as bots, not visitors.
 - A single SQLite-backed Durable Object (`Dashboard`) stores the visits. It waits for a few seconds of quiet, then edits the Discord message. If someone deletes the message, the next update posts a new one.
 

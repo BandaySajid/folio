@@ -2,7 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { classify, parseUA } from './classify';
 import { detectPhone, type ClientHints, type Screen } from './devices';
 import { brandFallback, catalogSize, displayName, lookupModel } from './models';
-import { fitDiscordLimits, render, renderAlert, type Totals, type Visit } from './render';
+import { fitDiscordLimits, recentLine, render, renderAlert, type Totals, type Visit } from './render';
 
 export interface Env {
   DASHBOARD: DurableObjectNamespace<Dashboard>;
@@ -12,6 +12,7 @@ export interface Env {
   SITE_NAME: string;
   TIMEZONE_OFFSET_MINUTES: string;
   NOTIFY_SOURCES: string;
+  VISIT_BUFFER: KVNamespace;
 }
 
 interface Beacon {
@@ -129,9 +130,17 @@ export default {
       const isBot = device.bot || attribution.category === 'Internal' || (asn !== null && DATACENTER_ASNS.has(asn));
       ctx.waitUntil(
         stub.record(visit, isBot).catch(async (err) => {
-          // Storage unavailable (quota, outage): still deliver the alert straight from here.
-          console.error('record failed, sending alert directly', err);
-          if (!isBot && wantsAlert(env, visit)) await sendDirectAlert(env, visit);
+          // Durable Object can't write (quota, outage): park the visit in KV, alert
+          // straight from here, and redraw the dashboard from reads + the buffer.
+          console.error('record failed, buffering visit in KV', err);
+          if (isBot) return;
+          resolveModel(visit);
+          const key = `v:${String(visit.ts).padStart(15, '0')}:${crypto.randomUUID().slice(0, 8)}`;
+          await Promise.allSettled([
+            env.VISIT_BUFFER.put(key, JSON.stringify(visit), { expirationTtl: 30 * 86_400 }),
+            wantsAlert(env, visit) ? sendDirectAlert(env, visit) : Promise.resolve(),
+          ]);
+          await stub.refresh().catch(() => patchDashboardFromBuffer(env).catch((e) => console.error('buffer dashboard patch failed', e)));
         }),
       );
       return new Response(null, { status: 204 });
@@ -174,6 +183,39 @@ async function sendDirectAlert(env: Env, visit: Visit) {
   }
 }
 
+const BUFFER_MARK = ' ⏸';
+
+// While the Durable Object is locked, keep the Discord dashboard moving: add the
+// buffered visits to its "Latest visits" list and flag that totals are paused.
+async function patchDashboardFromBuffer(env: Env) {
+  const messageId = await env.VISIT_BUFFER.get('meta:message_id');
+  if (!messageId) return;
+  const list = await env.VISIT_BUFFER.list({ prefix: 'v:' });
+  const buffered = (await Promise.all(list.keys.map((k) => env.VISIT_BUFFER.get<Visit>(k.name, 'json')))).filter((v): v is Visit => !!v).sort((a, b) => b.ts - a.ts);
+  if (!buffered.length) return;
+
+  const webhook = env.DISCORD_WEBHOOK_URL.replace(/\/$/, '');
+  const res = await fetch(`${webhook}/messages/${messageId}`);
+  if (!res.ok) throw new Error(`get dashboard: ${res.status}`);
+  const msg = await res.json<{ embeds: { title?: string; description?: string }[] }>();
+  const embeds = msg.embeds;
+  const notice = `⏸ **Storage paused** · ${buffered.length} new visit${buffered.length === 1 ? '' : 's'} buffered, totals update after the daily reset (05:30 IST)`;
+
+  const header = embeds[0];
+  if (header) header.description = [notice, ...(header.description ?? '').split('\n').filter((l) => !l.startsWith('⏸'))].join('\n');
+  const recent = embeds.find((e) => e.title?.includes('Latest visits'));
+  if (recent) {
+    const older = (recent.description ?? '').split('\n').filter((l) => l && !l.endsWith(BUFFER_MARK) && !l.startsWith('_'));
+    recent.description = [...buffered.slice(0, 10).map((v) => recentLine(v) + BUFFER_MARK), ...older].slice(0, 10).join('\n');
+  }
+  const patch = await fetch(`${webhook}/messages/${messageId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(fitDiscordLimits({ embeds })),
+  });
+  if (!patch.ok) throw new Error(`patch dashboard: ${patch.status} ${await patch.text()}`);
+}
+
 // Android model code -> "Samsung Galaxy S23 Ultra" via the bundled Play catalog.
 function resolveModel(visit: Visit): Visit {
   if ((visit.os !== 'Android' && visit.os !== 'HarmonyOS') || !visit.model_code) return visit;
@@ -203,18 +245,22 @@ export class Dashboard extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
-    this.sql.exec(`
-      CREATE TABLE IF NOT EXISTS visits (
+    // Only run DDL when something is missing: when writes are blocked (free-tier
+    // quota) the object must still start so the dashboard can be read.
+    const tables = new Set(this.sql.exec<{ name: string }>(`SELECT name FROM sqlite_master WHERE type IN ('table', 'index')`).toArray().map((r) => r.name));
+    const ddl: [string, string][] = [
+      ['visits', `CREATE TABLE visits (
         ts INTEGER NOT NULL, vid TEXT, return_visit INTEGER, source TEXT, category TEXT, detail TEXT,
         campaign TEXT, click_ids TEXT, in_app TEXT, country TEXT, city TEXT, region TEXT,
         device TEXT, os TEXT, browser TEXT, referrer TEXT, path TEXT
-      );
-      CREATE INDEX IF NOT EXISTS visits_ts ON visits(ts);
-      CREATE TABLE IF NOT EXISTS bots (ts INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
-      CREATE TABLE IF NOT EXISTS alerts (vid TEXT NOT NULL, source TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (vid, source));
-      CREATE TABLE IF NOT EXISTS outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, body TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_at INTEGER NOT NULL, last_error TEXT);
-    `);
+      )`],
+      ['visits_ts', 'CREATE INDEX visits_ts ON visits(ts)'],
+      ['bots', 'CREATE TABLE bots (ts INTEGER NOT NULL)'],
+      ['meta', 'CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT)'],
+      ['alerts', 'CREATE TABLE alerts (vid TEXT NOT NULL, source TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (vid, source))'],
+      ['outbox', 'CREATE TABLE outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, body TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_at INTEGER NOT NULL, last_error TEXT)'],
+    ];
+    for (const [name, sql] of ddl) if (!tables.has(name)) this.sql.exec(sql);
     // Columns added after the first release.
     const existing = new Set(this.sql.exec<{ name: string }>('PRAGMA table_info(visits)').toArray().map((c) => c.name));
     const added: [string, string][] = [
@@ -223,11 +269,7 @@ export class Dashboard extends DurableObject<Env> {
     ];
     for (const [col, type] of added) if (!existing.has(col)) this.sql.exec(`ALTER TABLE visits ADD COLUMN ${col} ${type}`);
     // The device catalog used to live in SQLite; it is bundled now.
-    try {
-      if (this.sql.exec(`SELECT 1 FROM sqlite_master WHERE name = 'models'`).toArray().length) this.sql.exec('DROP TABLE models');
-    } catch (err) {
-      console.error('could not drop old models table', err);
-    }
+    if (tables.has('models')) this.tryWrite(() => this.sql.exec('DROP TABLE models'));
   }
 
   // ---- recording -------------------------------------------------------------
@@ -375,6 +417,37 @@ export class Dashboard extends DurableObject<Env> {
 
   // ---- dashboard -------------------------------------------------------------------
 
+  private tryWrite(fn: () => void): boolean {
+    try {
+      fn();
+      return true;
+    } catch (err) {
+      console.error('storage write failed', err);
+      return false;
+    }
+  }
+
+  // Visits parked in KV while SQLite writes were blocked. Moves them into
+  // SQLite when possible; returns whatever is still only in KV.
+  private async drainBuffer(): Promise<Visit[]> {
+    const list = await this.env.VISIT_BUFFER.list({ prefix: 'v:' }).catch(() => null);
+    if (!list?.keys.length) return [];
+    const entries = (await Promise.all(list.keys.map(async (k) => [k.name, await this.env.VISIT_BUFFER.get<Visit>(k.name, 'json')] as const))).filter(
+      (e): e is readonly [string, Visit] => !!e[1],
+    );
+    const moved = this.tryWrite(() =>
+      this.ctx.storage.transactionSync(() => {
+        for (const [, v] of entries) {
+          const cols = Object.keys(v);
+          this.sql.exec(`INSERT INTO visits (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`, ...Object.values(v));
+        }
+      }),
+    );
+    if (!moved) return entries.map(([, v]) => v);
+    await Promise.allSettled(entries.map(([k]) => this.env.VISIT_BUFFER.delete(k)));
+    return [];
+  }
+
   private getMeta(k: string): string | null {
     const row = this.sql.exec<{ v: string }>('SELECT v FROM meta WHERE k = ?', k).toArray()[0];
     return row?.v ?? null;
@@ -392,13 +465,24 @@ export class Dashboard extends DurableObject<Env> {
 
   private async publish(): Promise<{ ok: boolean; messageId?: string | null; status?: number; retryAfterMs?: number }> {
     const now = Date.now();
-    this.sql.exec('DELETE FROM visits WHERE ts < ?', now - RETENTION_DAYS * DAY);
-    this.sql.exec('DELETE FROM bots WHERE ts < ?', now - 30 * DAY);
-    this.sql.exec('DELETE FROM alerts WHERE ts < ?', now - ALERT_DEDUPE_MS);
+    this.tryWrite(() => {
+      this.sql.exec('DELETE FROM visits WHERE ts < ?', now - RETENTION_DAYS * DAY);
+      this.sql.exec('DELETE FROM bots WHERE ts < ?', now - 30 * DAY);
+      this.sql.exec('DELETE FROM alerts WHERE ts < ?', now - ALERT_DEDUPE_MS);
+    });
 
-    const visits = this.sql.exec('SELECT * FROM visits WHERE ts >= ? ORDER BY ts DESC', now - 30 * DAY).toArray() as unknown as Visit[];
+    const pending = await this.drainBuffer();
+    const visits = (this.sql.exec('SELECT * FROM visits WHERE ts >= ? ORDER BY ts DESC', now - 30 * DAY).toArray() as unknown as Visit[])
+      .concat(pending.filter((v) => v.ts >= now - 30 * DAY))
+      .sort((a, b) => b.ts - a.ts);
+    const totals = this.totals(now);
+    if (pending.length) {
+      const known = new Set(this.sql.exec<{ vid: string }>('SELECT DISTINCT vid FROM visits').toArray().map((r) => r.vid));
+      totals.allViews += pending.length;
+      totals.allVisitors += new Set(pending.map((v) => v.vid).filter((v) => !known.has(v))).size;
+    }
     const payload = fitDiscordLimits(
-      render(visits, this.totals(now), {
+      render(visits, totals, {
         siteName: this.env.SITE_NAME,
         siteUrl: `https://${this.env.SITE_NAME}`,
         tzOffsetMinutes: Number(this.env.TIMEZONE_OFFSET_MINUTES) || 0,
@@ -431,7 +515,8 @@ export class Dashboard extends DurableObject<Env> {
     }
     if (res.ok) {
       const msg = await res.clone().json<{ id: string }>();
-      this.setMeta('message_id', msg.id);
+      await this.env.VISIT_BUFFER.put('meta:message_id', msg.id).catch(() => {});
+      this.tryWrite(() => this.setMeta('message_id', msg.id));
       return this.handle(res, msg.id);
     }
     return this.handle(res, null);

@@ -13,6 +13,9 @@
   "durable_objects": {
     "bindings": [{ "name": "DASHBOARD", "class_name": "Dashboard" }]
   },
+  // Fallback store for visits when the Durable Object can't write (outage or
+  // free-tier daily write quota). Drained back into SQLite automatically.
+  "kv_namespaces": [{ "binding": "VISIT_BUFFER", "id": "dd239e6ed73b4fd89eae5241c2a28318" }],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Dashboard"] }],
   "vars": {
     "ALLOWED_HOSTS": "sajidbanday.me,www.sajidbanday.me",

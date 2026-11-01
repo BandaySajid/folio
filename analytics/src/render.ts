@@ -154,6 +154,13 @@ function sourceLabel(v: Pick<Visit, 'source' | 'detail'>) {
   return v.detail ? `${v.source} · ${v.detail}` : v.source;
 }
 
+export function recentLine(v: Visit) {
+  const place = [v.city, v.country].filter(Boolean).join(', ') || 'Unknown';
+  const via = v.in_app && v.in_app !== v.source ? ` via ${v.in_app}` : '';
+  const tags = v.click_ids ? ` \`${v.click_ids.split(',')[0]}\`` : '';
+  return `<t:${unix(v.ts)}:R> ${flag(v.country)} **${trunc(place, 28)}** · ${icon(v.source)} ${trunc(sourceLabel(v), 32)}${via}${tags} · ${osIcon(v.os)} ${deviceLabel(v, 24)}${v.return_visit ? ' · 🔁' : ''}`;
+}
+
 export function render(visits: Visit[], totals: Totals, opts: RenderOptions) {
   const { now, tzOffsetMinutes } = opts;
   const tz = tzOffsetMinutes * 60_000;
@@ -280,12 +287,7 @@ export function render(visits: Visit[], totals: Totals, opts: RenderOptions) {
   const recent = [...visits]
     .sort((a, b) => b.ts - a.ts)
     .slice(0, 10)
-    .map((v) => {
-      const place = [v.city, v.country].filter(Boolean).join(', ') || 'Unknown';
-      const via = v.in_app && v.in_app !== v.source ? ` via ${v.in_app}` : '';
-      const tags = v.click_ids ? ` \`${v.click_ids.split(',')[0]}\`` : '';
-      return `<t:${unix(v.ts)}:R> ${flag(v.country)} **${trunc(place, 28)}** · ${icon(v.source)} ${trunc(sourceLabel(v), 32)}${via}${tags} · ${osIcon(v.os)} ${deviceLabel(v, 24)}${v.return_visit ? ' · 🔁' : ''}`;
-    })
+    .map((v) => recentLine(v))
     .join('\n');
 
   const recentEmbed = {
@@ -346,7 +348,7 @@ export function renderAlert(v: Visit, opts: Pick<RenderOptions, 'siteName'>, vis
           { name: 'Visitor', value: visitorVisits > 1 ? `🔁 Visit #${visitorVisits} from this person` : v.return_visit ? '🔁 Returning' : '🆕 First visit', inline: true },
           ...(v.click_ids || v.campaign ? [{ name: 'Signals', value: [v.click_ids && v.click_ids.split(',').map((c) => `\`${c}\``).join(' '), v.campaign && `campaign \`${v.campaign}\``].filter(Boolean).join(' · '), inline: false }] : []),
         ],
-        footer: { text: `Visit #${visitsToday} today${v.as_org ? ` · ${v.as_org}` : ''}` },
+        footer: { text: [visitsToday ? `Visit #${visitsToday} today` : '', v.as_org].filter(Boolean).join(' · ') || opts.siteName },
         timestamp: new Date(v.ts).toISOString(),
       },
     ],
